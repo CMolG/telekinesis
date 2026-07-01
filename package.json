@@ -1,0 +1,23 @@
+{
+  "name": "telekinesis-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cinematic, AI-orchestrated product demo videos — your real app records itself, driven by Playwright and narrated by a timesheet.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/*\" build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "playground": "pnpm --filter @telekinesis/playground dev",
+    "lint": "echo \"(lint not configured yet)\""
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

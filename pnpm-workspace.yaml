@@ -1,0 +1,11 @@
+packages:
+  - "packages/*"
+  - "playground"
+
+allowBuilds:
+  esbuild: true
+
+# esbuild (used by vite, tsup and vitest) needs its postinstall to place the
+# platform binary. pnpm defers build scripts by default; allow this one.
+onlyBuiltDependencies:
+  - esbuild

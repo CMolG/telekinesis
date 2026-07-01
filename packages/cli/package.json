@@ -1,0 +1,29 @@
+{
+  "name": "@telekinesis/cli",
+  "version": "0.1.0",
+  "description": "The Telekinesis command line: record demo videos from a timesheet, preview them, scaffold timesheets and synthesize a sound pack.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "telekinesis": "./dist/cli.js"
+  },
+  "files": ["dist", "assets"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "telekinesis": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@telekinesis/engine": "workspace:*",
+    "@telekinesis/schema": "workspace:*",
+    "commander": "^12.1.0",
+    "execa": "^9.5.2",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

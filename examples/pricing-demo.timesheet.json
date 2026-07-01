@@ -1,0 +1,29 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "Pricing → sign-up tour",
+    "description": "Zoom the pricing table, pick Pro, then fill the sign-up form.",
+    "author": "telekinesis"
+  },
+  "url": "http://localhost:5173?demo",
+  "resolution": { "width": 1280, "height": 720 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 500 },
+    { "action": "zoom-in", "frameId": "pricing", "scale": 1.12, "duration": 1100, "easing": "ease-out" },
+    { "action": "highlight", "frameId": "tier-pro", "duration": 1300, "delayAfter": 200 },
+    { "action": "cursor-move", "destFrameId": "tier-pro-cta", "duration": 750 },
+    { "action": "click", "frameId": "tier-pro-cta", "soundProfile": "macbook-trackpad", "delayAfter": 400 },
+    { "action": "zoom-out", "duration": 800, "delayAfter": 300 },
+    { "action": "cursor-move", "destFrameId": "email", "duration": 700 },
+    { "action": "click", "frameId": "email" },
+    { "action": "type-down", "frameId": "email", "text": "ada@telekinesis.dev", "typingSpeed": 60, "soundProfile": "mechanical-keyboard", "delayAfter": 250 },
+    { "action": "cursor-move", "destFrameId": "password", "duration": 600 },
+    { "action": "click", "frameId": "password" },
+    { "action": "type-down", "frameId": "password", "text": "l0vel@ce", "typingSpeed": 72, "soundProfile": "mechanical-keyboard", "delayAfter": 250 },
+    { "action": "cursor-move", "destFrameId": "login", "duration": 650 },
+    { "action": "shake", "frameId": "login", "intensity": "low", "duration": 320 },
+    { "action": "click", "frameId": "login", "soundProfile": "macbook-trackpad", "delayAfter": 700 },
+    { "action": "highlight", "frameId": "welcome", "duration": 1600, "padding": 14 }
+  ]
+}
