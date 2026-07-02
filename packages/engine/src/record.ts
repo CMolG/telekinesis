@@ -127,14 +127,18 @@ async function runEffectOnPage(
     case "click": {
       await runVisual(page, eff); // ghost cursor + ripple
       const target = await clickable(frameLocator(page, eff.frameId));
-      await target.click();
+      // The camera layer animates the page transform by design (zoom holds carry
+      // a subtle idle drift), so a target is essentially never "stable" under
+      // Playwright's actionability check. Force the click: the element is real,
+      // visible and hit-testable — only its transform is in motion.
+      await target.click({ force: true });
       mark(eff.soundProfile);
       return;
     }
 
     case "type-down": {
       const field = await editable(frameLocator(page, eff.frameId));
-      await field.click();
+      await field.click({ force: true });
       for (const ch of [...eff.text]) {
         mark(eff.soundProfile);
         await field.pressSequentially(ch, { delay: 0 });
@@ -147,7 +151,7 @@ async function runEffectOnPage(
       await runVisual(page, eff); // cursor travels the path
       const source = frameLocator(page, eff.frameId);
       if (eff.destFrameId) {
-        await source.dragTo(frameLocator(page, eff.destFrameId));
+        await source.dragTo(frameLocator(page, eff.destFrameId), { force: true });
       } else if (typeof eff.destX === "number" && typeof eff.destY === "number") {
         const box = await source.boundingBox();
         if (box) {
