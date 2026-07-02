@@ -67,6 +67,20 @@ export function quadBezier(p0: Point, c: Point, p1: Point, t: number): Point {
 }
 
 /**
+ * A point on the ray from `a` through `b`, `extra` px beyond `b`. Degenerates
+ * to `b` itself when `a` and `b` coincide (zero-length direction). Used for
+ * the ghost cursor's micro-overshoot: travel slightly past the real target,
+ * then spring back — see `cursor.ts`.
+ */
+export function pointAlong(a: Point, b: Point, extra: number): Point {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { ...b };
+  return { x: b.x + (dx / len) * extra, y: b.y + (dy / len) * extra };
+}
+
+/**
  * A control point that bends a straight A→B path into a human-looking arc:
  * the midpoint, pushed perpendicular to the path by a fraction of its length.
  */

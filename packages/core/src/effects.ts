@@ -140,7 +140,13 @@ export async function runEffect(effect: Effect, ctx: RunContext): Promise<void> 
  * Helpers
  * ------------------------------------------------------------------ */
 
-function destPoint(e: {
+/**
+ * Resolve a `destFrameId`/`destX`+`destY` pair to a viewport point. Exported
+ * (in addition to being used by `runEffect` above) so `seek.ts` can compute
+ * the same "where does this effect leave the cursor" answer without
+ * duplicating the frame/coordinate fallback logic.
+ */
+export function destPoint(e: {
   destFrameId?: string;
   destX?: number;
   destY?: number;

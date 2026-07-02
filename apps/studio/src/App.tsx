@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createStudioClient, type FrameInfo, type StudioClient } from "@telekinesis/core";
-import { safeParseTimesheet, type Effect, type TimesheetInput } from "@telekinesis/schema";
+import { layoutTimesheet, safeParseTimesheet, type Effect, type SoundProfile, type TimesheetInput } from "@telekinesis/schema";
 import { Inspector } from "./Inspector";
+import { ReorderStrip } from "./ReorderStrip";
 import { Timeline } from "./Timeline";
+import { canRedo, canUndo, createHistory, pushHistory, redo, undo, type History } from "./history";
+import { clampSelection, remapSelectionAfterMove, reorderTimeline, suggestedSoundProfile } from "./timeline-ops";
 
 declare const __TK_TARGET__: string;
 
@@ -29,19 +32,30 @@ export function App() {
     }
   });
   const [urlInput, setUrlInput] = useState(target);
-  const [sheet, setSheet] = useState<TimesheetInput>(DEFAULT_SHEET);
+  // `sheet` is a history-tracked snapshot stack (undo/redo — feature 4). Only
+  // committed structural edits (add/update/delete/reorder/resize) push a
+  // snapshot; `selected` below is deliberately kept OUTSIDE this stack so
+  // pure selection changes never grow the undo history.
+  const [history, setHistory] = useState<History<TimesheetInput>>(() => createHistory(DEFAULT_SHEET));
+  const sheet = history.present;
   const [frames, setFrames] = useState<FrameInfo[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
   const [xray, setXray] = useState(true);
   const [connected, setConnected] = useState(false);
   const [status, setStatus] = useState("Load a Telekinetic app to begin.");
   const [busy, setBusy] = useState(false);
+  const [playheadMs, setPlayheadMs] = useState(0);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const clientRef = useRef<StudioClient | null>(null);
+  const scrubRaf = useRef(0);
 
   const parsed = useMemo(() => safeParseTimesheet(sheet), [sheet]);
   const frameIds = useMemo(() => frames.map((f) => f.id), [frames]);
+  const layout = useMemo(
+    () => (parsed.success ? layoutTimesheet(parsed.data) : { items: [], totalMs: 0 }),
+    [parsed],
+  );
 
   const refreshFrames = useCallback(async () => {
     const c = clientRef.current;
@@ -66,6 +80,10 @@ export function App() {
       await client.ready(8000);
       setConnected(true);
       setStatus("Connected.");
+      // Event-driven X-ray (feature 6): the bridge re-emits `frames-changed`
+      // on registry mutation *and* on scroll/resize (rAF-throttled inside
+      // the target — see studio-bridge.ts), so this single listener replaces
+      // the old `setInterval(refreshFrames, 700)` poll entirely.
       client.on("frames-changed", () => void refreshFrames());
       await refreshFrames();
     } catch {
@@ -73,27 +91,57 @@ export function App() {
     }
   }, [refreshFrames]);
 
-  // Keep badge rects fresh while the X-ray is on (tracks scrolling/layout).
-  useEffect(() => {
-    if (!xray || !connected) return;
-    const id = window.setInterval(refreshFrames, 700);
-    return () => window.clearInterval(id);
-  }, [xray, connected, refreshFrames]);
-
   useEffect(() => () => clientRef.current?.destroy(), []);
+
+  /* --------------------------- history (undo/redo) --------------------------- */
+
+  const commitSheet = useCallback((updater: (s: TimesheetInput) => TimesheetInput) => {
+    setHistory((h) => pushHistory(h, updater(h.present)));
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (!canUndo(history)) return;
+    const next = undo(history);
+    setHistory(next);
+    setSelected((sel) => clampSelection(sel, (next.present.timeline as unknown[]).length));
+  }, [history]);
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo(history)) return;
+    const next = redo(history);
+    setHistory(next);
+    setSelected((sel) => clampSelection(sel, (next.present.timeline as unknown[]).length));
+  }, [history]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      } else if (key === "z") {
+        e.preventDefault();
+        handleUndo();
+      } else if (key === "y") {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleUndo, handleRedo]);
 
   /* --------------------------- editing --------------------------- */
 
   const addEffect = (effect: Record<string, unknown>) => {
-    setSheet((s) => {
-      const timeline = [...(s.timeline as unknown[]), effect];
-      setSelected(timeline.length - 1);
-      return { ...s, timeline } as TimesheetInput;
-    });
+    const nextIndex = (sheet.timeline as unknown[]).length;
+    commitSheet((s) => ({ ...s, timeline: [...(s.timeline as unknown[]), effect] }) as TimesheetInput);
+    setSelected(nextIndex);
   };
 
   const updateEffect = (index: number, next: Record<string, unknown>) => {
-    setSheet((s) => {
+    commitSheet((s) => {
       const timeline = [...(s.timeline as unknown[])];
       timeline[index] = next;
       return { ...s, timeline } as TimesheetInput;
@@ -101,7 +149,7 @@ export function App() {
   };
 
   const deleteEffect = (index: number) => {
-    setSheet((s) => {
+    commitSheet((s) => {
       const timeline = (s.timeline as unknown[]).filter((_, i) => i !== index);
       if (timeline.length === 0) timeline.push({ action: "wait", duration: 500 });
       return { ...s, timeline } as TimesheetInput;
@@ -109,10 +157,48 @@ export function App() {
     setSelected(null);
   };
 
+  const reorderClip = (from: number, to: number) => {
+    commitSheet((s) => ({ ...s, timeline: reorderTimeline(s.timeline as unknown[], from, to) }) as TimesheetInput);
+    setSelected((sel) => remapSelectionAfterMove(sel, from, to));
+  };
+
+  const resizeClip = (index: number, durationMs: number) => {
+    const effect = parsed.success ? (parsed.data.timeline[index] as unknown as Record<string, unknown>) : null;
+    if (!effect) return;
+    updateEffect(index, { ...effect, duration: durationMs });
+  };
+
+  const toggleMute = (index: number) => {
+    const effect = parsed.success ? (parsed.data.timeline[index] as unknown as Record<string, unknown>) : null;
+    if (!effect || effect.action === "wait") return;
+    const current = effect.soundProfile as SoundProfile | undefined;
+    const next = current ? undefined : suggestedSoundProfile(effect.action as Effect["action"]);
+    updateEffect(index, { ...effect, soundProfile: next });
+  };
+
   const selectAndPreview = (index: number) => {
     setSelected(index);
     if (parsed.success) clientRef.current?.runEffect(parsed.data.timeline[index]).catch(() => {});
   };
+
+  /* --------------------------- playhead / scrubbing --------------------------- */
+
+  const seekPlayhead = useCallback(
+    (t: number) => {
+      const clamped = Math.max(0, Math.min(t, Math.max(layout.totalMs, 0)));
+      setPlayheadMs(clamped);
+      if (!parsed.success) return;
+      // rAF-throttle the actual bridge round-trip: the range input / RTE
+      // cursor can fire many times per drag frame, but only the latest
+      // matters — the target only ever needs to reflect where the playhead
+      // *ends up* on this frame.
+      if (scrubRaf.current) cancelAnimationFrame(scrubRaf.current);
+      scrubRaf.current = requestAnimationFrame(() => {
+        clientRef.current?.seek(parsed.data, clamped).catch(() => {});
+      });
+    },
+    [layout.totalMs, parsed],
+  );
 
   /* --------------------------- transport --------------------------- */
 
@@ -194,6 +280,14 @@ export function App() {
         <label className="tk-toggle">
           <input type="checkbox" checked={xray} onChange={(e) => setXray(e.target.checked)} /> X-ray
         </label>
+        <div className="tk-history">
+          <button onClick={handleUndo} disabled={!canUndo(history)} type="button" aria-label="Undo last edit (Cmd/Ctrl+Z)">
+            ↶ Undo
+          </button>
+          <button onClick={handleRedo} disabled={!canRedo(history)} type="button" aria-label="Redo last edit (Cmd/Ctrl+Shift+Z)">
+            ↷ Redo
+          </button>
+        </div>
         <div className="tk-transport">
           <button onClick={play} disabled={busy || !connected} type="button">▶ Play</button>
           <button onClick={stop} type="button">■ Stop</button>
@@ -274,7 +368,20 @@ export function App() {
 
       <div className="tk-timeline-dock">
         {parsed.success && (
-          <Timeline sheet={parsed.data} selectedIndex={selected} onSelect={selectAndPreview} />
+          <>
+            <ReorderStrip sheet={parsed.data} selectedIndex={selected} onSelect={selectAndPreview} onReorder={reorderClip} />
+            <Timeline
+              sheet={parsed.data}
+              selectedIndex={selected}
+              onSelect={selectAndPreview}
+              playheadMs={playheadMs}
+              totalMs={layout.totalMs}
+              onScrub={seekPlayhead}
+              onScrubStart={stop}
+              onResize={resizeClip}
+              onToggleMute={toggleMute}
+            />
+          </>
         )}
       </div>
     </div>

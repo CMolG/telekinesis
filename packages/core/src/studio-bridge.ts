@@ -64,6 +64,15 @@ export function installStudioBridge(target: Window = window): () => void {
       getRuntime()?.showCursor();
     },
     runEffect: (args) => getRuntime()?.runEffect(args[0] as Effect),
+    /**
+     * Additive — Studio playhead scrubbing. See `seek.ts` for what "seek"
+     * means here (a persistent-state reconstruction, not a frame-accurate
+     * jump). Existing messages (`ping`/`listFrames`/`runEffect`/`play`/`stop`)
+     * are unchanged; the playground never sends `seek` and is unaffected.
+     */
+    seek: (args) => {
+      getRuntime()?.seekTo(args[0] as TimesheetInput, Number(args[1]));
+    },
     stop: () => {
       playAbort?.abort();
     },
@@ -105,11 +114,34 @@ export function installStudioBridge(target: Window = window): () => void {
   // Re-emit whenever the set of mounted frames changes, so the Studio can keep
   // its X-ray overlay and frame palette in sync as the user navigates.
   const unsubscribe = registryStore.subscribe(() => emit("frames-changed"));
+
+  // Frame *rects* also go stale on scroll/resize without any registry
+  // mutation. The Studio can't observe the iframe's DOM directly (often a
+  // different origin), so the bridge is the only place that can notice —
+  // re-emit the same `frames-changed` event, rAF-throttled so a scroll
+  // doesn't flood postMessage. Replaces the Studio's old `setInterval(700)`
+  // poll: this fires only when something actually moved.
+  let scrollRaf = 0;
+  const onViewportChange = (): void => {
+    if (scrollRaf) return;
+    scrollRaf = target.requestAnimationFrame(() => {
+      scrollRaf = 0;
+      emit("frames-changed");
+    });
+  };
+  // `capture: true` on `target` catches scroll events from any scrollable
+  // descendant, not just window-level scroll (scroll events don't bubble).
+  target.addEventListener("scroll", onViewportChange, { capture: true, passive: true });
+  target.addEventListener("resize", onViewportChange);
+
   // Announce readiness for a Studio that attached after the app booted.
   emit("ready");
 
   return () => {
     target.removeEventListener("message", onMessage);
+    target.removeEventListener("scroll", onViewportChange, { capture: true });
+    target.removeEventListener("resize", onViewportChange);
+    if (scrollRaf) target.cancelAnimationFrame(scrollRaf);
     unsubscribe();
     playAbort?.abort();
   };
@@ -135,6 +167,12 @@ export interface StudioClient {
   /** Play a whole timesheet live in the target; resolves with the sound marks. */
   play(sheet: TimesheetInput, opts?: StudioPlayOptions): Promise<SoundMark[]>;
   stop(): Promise<void>;
+  /**
+   * Additive — instantly reconstruct the target's persistent visual state
+   * (cursor, camera zoom, scroll) at absolute time `t` (ms). Powers the
+   * Studio's playhead/scrubber. Not frame-accurate; see `seek.ts`.
+   */
+  seek(sheet: TimesheetInput, t: number): Promise<void>;
   /** Subscribe to bridge events (`ready`, `frames-changed`, `step`). */
   on(event: string, cb: (data: Record<string, unknown>) => void): () => void;
   destroy(): void;
@@ -229,6 +267,7 @@ export function createStudioClient(
       return call<SoundMark[]>("play", [sheet, { mode, sound, soundBase }], 0).finally(off);
     },
     stop: () => call("stop"),
+    seek: (sheet, t) => call("seek", [sheet, t]),
     on,
     destroy: () => {
       window.removeEventListener("message", onMessage);

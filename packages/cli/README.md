@@ -12,7 +12,7 @@ telekinesis preview telekinesis.timesheet.json
 # record + mix → mp4
 telekinesis record telekinesis.timesheet.json -o demo.mp4
 
-# generate a starter sound pack (placeholder wavs)
+# procedurally synthesize the sound pack (wavs, no ffmpeg needed for this step)
 telekinesis sounds -o telekinesis-sounds
 telekinesis record flow.json -s telekinesis-sounds -o demo.mp4
 ```

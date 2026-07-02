@@ -1,5 +1,5 @@
-import type { Effect, EffectAction } from "@telekinesis/schema";
-import { EFFECT_ACTIONS } from "@telekinesis/schema";
+import type { Effect, EffectAction, SoundProfile } from "@telekinesis/schema";
+import { EFFECT_ACTIONS, SOUND_PROFILES, SOUND_PROFILE_IDS } from "@telekinesis/schema";
 
 /**
  * A pragmatic, schema-aware inspector for the selected effect. It edits the
@@ -51,6 +51,8 @@ export function Inspector({
   const hasFrame = "frameId" in e;
   const hasDest = action === "cursor-move" || action === "drag-and-drop";
   const hasDuration = action !== "click" && action !== "type-down";
+  /** Every action except `wait` can carry a `soundProfile` (schema-enforced). */
+  const hasSound = action !== "wait";
 
   return (
     <div className="tk-inspector">
@@ -81,6 +83,23 @@ export function Inspector({
       {hasDuration && num("duration", "Duration (ms)")}
       {num("delayBefore", "Delay before (ms)")}
       {num("delayAfter", "Delay after (ms)")}
+
+      {hasSound && (
+        <label className="tk-field">
+          <span>Sound</span>
+          <select
+            value={(e.soundProfile as string) ?? ""}
+            onChange={(ev) => set({ soundProfile: (ev.target.value || undefined) as SoundProfile | undefined })}
+          >
+            <option value="">— (silent)</option>
+            {SOUND_PROFILE_IDS.map((id) => (
+              <option key={id} value={id}>
+                {SOUND_PROFILES[id].label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className="tk-field">
         <span>Note</span>

@@ -16,7 +16,8 @@ export {
 } from "./studio-bridge";
 
 export { play, type PlayOptions } from "./player";
-export { runEffect, type RunContext } from "./effects";
+export { seekTo } from "./seek";
+export { runEffect, destPoint, type RunContext } from "./effects";
 export {
   installRuntime,
   getRuntime,
@@ -34,11 +35,19 @@ export {
   type FrameInfo,
 } from "./registry";
 
-export { getCursor, GhostCursor, type MoveOptions } from "./cursor";
+export { getCursor, GhostCursor, fittsEase, type MoveOptions } from "./cursor";
 export { getOverlay, Overlay, type HighlightOptions } from "./overlay";
+export { Camera, type CameraState, type CameraMotion, type CameraOptions } from "./camera";
 export { getLayer, destroyLayer } from "./layer";
 export { SoundEngine, type SoundMark, type SoundEngineOptions } from "./sound";
 export { cssEasing, jsEasing } from "./easing";
+export {
+  Spring,
+  animateSpring,
+  animateSprings,
+  DEFAULT_SPRING_PARAMS,
+  type SpringParams,
+} from "./timing";
 export type { Point, RectJSON } from "./geometry";
 
 // React surface (peer dependency)

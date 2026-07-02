@@ -120,3 +120,14 @@ export function layoutTimesheet(sheet: Pick<Timesheet, "timeline">): TimesheetLa
   });
   return { items, totalMs: cursor };
 }
+
+/**
+ * Which laid-out clips have *started* by absolute time `t` (ms), in timeline
+ * order. `items` is sorted by `start` (playback is strictly sequential), so
+ * this is a simple prefix — but naming it gives the Studio's scrubber and the
+ * in-target `seekTo` a single, testable definition of "what has begun by
+ * now" instead of each re-deriving the cutoff inline.
+ */
+export function itemsStartedBy(layout: Pick<TimesheetLayout, "items">, t: number): LaidOutEffect[] {
+  return layout.items.filter((item) => item.start <= t);
+}

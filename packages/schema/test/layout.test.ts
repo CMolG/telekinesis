@@ -3,6 +3,7 @@ import {
   EFFECT_ACTIONS,
   LANE_OF,
   estimateEffectDuration,
+  itemsStartedBy,
   layoutTimesheet,
   parseTimesheet,
 } from "../src/index";
@@ -59,5 +60,37 @@ describe("layoutTimesheet", () => {
     });
     const { items } = layoutTimesheet(sheet);
     expect(items.map((i) => i.index)).toEqual([0, 1]);
+  });
+});
+
+describe("itemsStartedBy", () => {
+  const sheet = parseTimesheet({
+    timeline: [
+      { action: "wait", duration: 500 }, // 0 → 500
+      { action: "zoom-in", frameId: "hero", duration: 700 }, // 500 → 1200
+      { action: "zoom-out", duration: 400 }, // 1200 → 1600
+    ],
+  });
+  const layout = layoutTimesheet(sheet);
+
+  it("excludes everything before playback starts", () => {
+    expect(itemsStartedBy(layout, -1)).toEqual([]);
+  });
+
+  it("is a prefix: only clips whose start has been reached", () => {
+    // t=500 is exactly the zoom-in's start — it has begun, wait has ended.
+    expect(itemsStartedBy(layout, 500).map((i) => i.index)).toEqual([0, 1]);
+  });
+
+  it("includes a clip that is mid-flight at t", () => {
+    expect(itemsStartedBy(layout, 900).map((i) => i.index)).toEqual([0, 1]);
+  });
+
+  it("includes everything once t reaches the last clip's start", () => {
+    expect(itemsStartedBy(layout, 1200).map((i) => i.index)).toEqual([0, 1, 2]);
+  });
+
+  it("stays a prefix (stable order) past the end of playback", () => {
+    expect(itemsStartedBy(layout, 999_999).map((i) => i.index)).toEqual([0, 1, 2]);
   });
 });

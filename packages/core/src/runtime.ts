@@ -1,10 +1,11 @@
-import type { Effect } from "@telekinesis/schema";
+import type { Effect, TimesheetInput } from "@telekinesis/schema";
 import { getCursor } from "./cursor";
 import { runEffect } from "./effects";
 import { rectToJSON, type RectJSON } from "./geometry";
 import { getOverlay } from "./overlay";
 import { play } from "./player";
 import { getFrameRect, listFrames, type FrameInfo } from "./registry";
+import { seekTo } from "./seek";
 
 export const VERSION = "0.1.0";
 
@@ -23,6 +24,13 @@ export interface TelekinesisRuntime {
   listFrames: () => FrameInfo[];
   getRect: (id: string) => RectJSON | null;
   showCursor: () => void;
+  /**
+   * Studio scrubbing: instantly reconstruct the persistent visual state
+   * (cursor position, camera zoom, scroll offset) at absolute time `t` (ms).
+   * See `seek.ts` for the fidelity trade-off. Additive — does not affect
+   * `play`/`runEffect`.
+   */
+  seekTo: (sheet: TimesheetInput, t: number) => void;
 }
 
 export function installRuntime(_opts: { soundBase?: string } = {}): TelekinesisRuntime {
@@ -41,6 +49,7 @@ export function installRuntime(_opts: { soundBase?: string } = {}): TelekinesisR
       return r ? rectToJSON(r) : null;
     },
     showCursor: () => cursor.show(),
+    seekTo: (sheet, t) => seekTo(sheet, t),
   };
 
   if (typeof window !== "undefined") {
