@@ -1,0 +1,45 @@
+---
+title: Studio
+---
+
+# The Studio
+
+The Studio is an interactive, CapCut-style editor for timesheets. It runs on a
+rare local port (**57174**), embeds your app, shows which components are
+Telekinetic, and lets you tune timing, transitions and effects with live
+preview — then renders a GIF or MP4.
+
+<Frame id="studio-shot" intent="studio-preview">
+  <div className="tk-shot">
+    <h3>🎬 A generative video editor</h3>
+    <p>It doesn't guess at your UI. It collects your app's own <code>&lt;TelekineticFrame&gt;</code>s over a <code>postMessage</code> bridge and builds the editing surface from them: an X-ray of every frame, a timeline of your sequence, and a schema-driven inspector.</p>
+  </div>
+</Frame>
+
+<DemoGif section="studio" caption="The editor is itself a Telekinetic page — of course it demos itself." />
+
+<Divider />
+
+## Launch it
+
+```bash
+# Edits the docs site by default
+telekinesis studio
+
+# Point it at any Telekinetic app
+telekinesis studio --target http://localhost:3000 --port 57174
+```
+
+## How it works
+
+1. **Bridge** — `<TelekinesisStage>` exposes the runtime over `postMessage`
+   when the page is loaded in Studio mode (`?telekinesis-studio`). The Studio
+   drives *any* app in an iframe, cross-origin.
+2. **X-ray** — `listFrames()` + `getRect()` draw a badge over every Telekinetic
+   component so you can see what's controllable.
+3. **Timeline** — your sequential timesheet is projected onto an absolute time
+   axis with `layoutTimesheet()`, rendered as draggable clips per lane.
+4. **Preview** — ▶ Play performs the timesheet live in the embedded app; the
+   playhead stays in sync. Click a clip to preview just that beat.
+5. **Render** — export a validated `*.timesheet.json`, or render a GIF/MP4 via
+   the recording sidecar.

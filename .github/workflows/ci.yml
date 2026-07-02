@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -31,5 +32,37 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Build
+      - name: Build packages
         run: pnpm build
+
+      - name: Build docs
+        run: pnpm docs:build
+
+  # Records each docs section into a GIF by driving the site with a real browser.
+  # Heavy (browsers + ffmpeg), so it runs on demand rather than on every push.
+  motion:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: System deps
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
+          pnpm exec playwright install --with-deps chromium
+      - name: Build docs
+        run: pnpm docs:build
+      - name: Record motion
+        run: pnpm docs:motion
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motion-gifs
+          path: apps/docs/public/motion/*.gif

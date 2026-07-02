@@ -1,0 +1,57 @@
+---
+title: Introduction
+---
+
+<Header />
+
+<Frame id="hero" intent="hero-section">
+  <div className="tk-hero">
+    <h1>Your product films its own demo.</h1>
+    <p>
+      Wrap a region in <code>&lt;TelekineticFrame&gt;</code>, mount{" "}
+      <code>&lt;TelekinesisStage&gt;</code>, and Telekinesis choreographs the zooms,
+      spotlights, ghost-cursor moves and typing — captured to <strong>video or GIF</strong>{" "}
+      by Playwright, narrated by a declarative <em>timesheet</em>.
+    </p>
+    <Frame id="hero-cta" intent="primary-action">
+      <a className="tk-cta" href="/getting-started">Start recording →</a>
+    </Frame>
+  </div>
+</Frame>
+
+<DemoGif section="hero" caption="This page is a Telekinetic app. Press ▶ Play live to watch it perform its own tour." />
+
+This very site is the demo target: the docs are marked up with frames, and every
+motion example below was recorded by Telekinesis recording **itself**.
+
+<Frame id="pillars" intent="feature-grid">
+  <div className="tk-pillars">
+    <Frame id="pillar-motion" intent="feature-card">
+      <div className="tk-pillar">
+        <h3>🎞️ Motion-first</h3>
+        <p>Eased zooms, spotlights and a ghost cursor — the camera language editors reach for, driven entirely by data.</p>
+      </div>
+    </Frame>
+    <Frame id="pillar-ai" intent="feature-card">
+      <div className="tk-pillar">
+        <h3>🤖 AI-authored</h3>
+        <p>An MCP agent drafts a schema-valid timesheet from your live frames; you refine the pacing.</p>
+      </div>
+    </Frame>
+    <Frame id="pillar-ci" intent="feature-card">
+      <div className="tk-pillar">
+        <h3>⚙️ CI-friendly</h3>
+        <p>Headless Playwright + ffmpeg produce a fresh MP4 or GIF on every merge — no manual capture.</p>
+      </div>
+    </Frame>
+  </div>
+</Frame>
+
+<Divider />
+
+## Where to next
+
+- **[Getting started](/getting-started)** — mark up your UI and record in five minutes.
+- **[Concepts](/concepts)** — one component, two lives; the registry; the overlay.
+- **[Effects](/effects)** — the full cinematic vocabulary, each shown in motion.
+- **[Studio](/studio)** — edit a timesheet visually, like a video editor.

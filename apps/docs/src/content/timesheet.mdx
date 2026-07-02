@@ -1,0 +1,49 @@
+---
+title: Timesheet
+---
+
+# The timesheet
+
+A timesheet is the **score** the recorder performs: recording settings plus an
+ordered `timeline` of [effects](/effects). It is a *sequence* — each effect runs
+after the previous one, separated by optional `delayBefore` / `delayAfter`.
+
+<Frame id="ts-json" intent="timesheet-json">
+  <pre className="tk-code">{`{
+  "version": "1.0",
+  "url": "http://localhost:4311/?demo",
+  "resolution": { "width": 1280, "height": 720 },
+  "fps": 30,
+  "timeline": [
+    { "action": "zoom-in",   "frameId": "hero-cta", "scale": 1.18 },
+    { "action": "highlight", "frameId": "hero" },
+    { "action": "cursor-move", "destFrameId": "hero-cta" },
+    { "action": "click", "frameId": "hero-cta", "soundProfile": "macbook-trackpad" },
+    { "action": "zoom-out" }
+  ]
+}`}</pre>
+</Frame>
+
+<DemoGif section="timesheet" caption="The recorder walks this sequence top to bottom." />
+
+<Divider />
+
+## Rules
+
+- `timeline` must have at least one effect.
+- `frameId` / `destFrameId` must match a `<Frame id=…>` mounted when the effect runs.
+- `drag-and-drop` and `cursor-move` require a destination — enforced by the schema.
+- Unknown actions and unknown fields are rejected.
+
+## Validate
+
+```ts
+import { parseTimesheet, safeParseTimesheet } from "@telekinesis/schema";
+
+parseTimesheet(json);                // throws ZodError on problems
+const r = safeParseTimesheet(json);  // { success, data | error }
+```
+
+The CLI and the [Studio](/studio) both validate before recording, and the schema
+also powers `layoutTimesheet()` — the helper that projects this sequence onto an
+absolute time axis for the visual editor.

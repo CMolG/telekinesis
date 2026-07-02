@@ -1,0 +1,61 @@
+---
+title: GIF export
+---
+
+# GIF export
+
+Telekinesis renders **video and GIF** from the same recording. A GIF is perfect
+for READMEs, issues and social — portable and autoplaying anywhere. For the web,
+though, an autoplaying **webm `<video>`** is a fraction of a GIF's size at full
+quality — so this documentation plays webm and keeps a lightweight GIF as a
+fallback. Every motion example here is produced this way.
+
+<Frame id="gif-demo" intent="gif-demo">
+  <div className="tk-shot">
+    <h3>◑ One recording, many artifacts</h3>
+    <p>The recorder captures a silent <code>.webm</code>. From there: MP4 mixes timed audio with ffmpeg; GIF skips audio and encodes a palette; and the raw webm itself is the lightest way to show motion on the web.</p>
+  </div>
+</Frame>
+
+<DemoGif section="gif-export" caption="Recorded once, then shown as a tiny webm with a GIF fallback." />
+
+<Divider />
+
+## From the CLI
+
+```bash
+# Record and export a lightweight looping GIF
+telekinesis gif flow.timesheet.json -o demo.gif
+
+# Or ask `record` for both an MP4 and a GIF
+telekinesis record flow.timesheet.json --format both -o demo.mp4
+```
+
+Knobs: `--fps` (default 15), `--width` (default 640), `--max-colors` (cap the
+palette), `--lossy` (needs gifsicle), `--no-gifski`.
+
+## Keeping GIFs light
+
+GIF is an old format — big by nature. Telekinesis defaults to sane, small
+settings and layers three levers:
+
+| Lever | Effect |
+| --- | --- |
+| **width / fps** | fewer, smaller frames — the biggest wins |
+| **`maxColors`** | a capped palette (e.g. 96) shrinks every frame |
+| **gifsicle** | auto-detected `-O3` (+ `--lossy`) strips unchanged pixels between frames — huge for UI holds |
+
+Encoders: **ffmpeg** (always available) two-pass `palettegen` → `paletteuse`, or
+**gifski** (auto-detected) for the quality ceiling. Both live in
+[`@telekinesis/render`](/cli), shared by the CLI and the Studio.
+
+## Programmatically
+
+```ts
+import { record } from "@telekinesis/engine";
+import { toGif } from "@telekinesis/render";
+
+const { videoPath } = await record(sheet, { outDir });
+// small, web-friendly GIF; gifsicle used automatically if installed
+await toGif(videoPath, { output: "demo.gif", fps: 12, width: 560, maxColors: 96 });
+```

@@ -1,0 +1,51 @@
+---
+title: Getting started
+---
+
+# Getting started
+
+## Install
+
+```bash
+pnpm add @telekinesis/core            # in your React/Next app
+pnpm add -D @telekinesis/cli          # the recorder
+pnpm exec playwright install chromium # one-time
+```
+
+## Mark up your UI
+
+Wrap regions in `<TelekineticFrame>` and mount `<TelekinesisStage>` once near the
+root. For real visitors these compile away to nothing; under the recorder they
+become measurable, zoomable targets.
+
+```tsx
+import { TelekineticFrame, TelekinesisStage } from "@telekinesis/core";
+
+export default function Pricing() {
+  return (
+    <>
+      <TelekinesisStage />
+      <TelekineticFrame id="pricing" intent="pricing-table">
+        <TelekineticFrame id="buy" intent="primary-action">
+          <button>Buy Pro</button>
+        </TelekineticFrame>
+      </TelekineticFrame>
+    </>
+  );
+}
+```
+
+## Author a timesheet
+
+By hand, via [`telekinesis init`](/cli), the [MCP agent](/mcp), or visually in the
+[Studio](/studio). See the [timesheet reference](/timesheet).
+
+## Preview & record
+
+```bash
+telekinesis preview flow.timesheet.json          # headed, no file
+telekinesis record  flow.timesheet.json -o demo.mp4
+telekinesis gif     flow.timesheet.json -o demo.gif
+```
+
+That's it — change the UI, re-run one command, get a fresh demo.

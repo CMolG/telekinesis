@@ -1,0 +1,47 @@
+---
+title: Effects
+---
+
+# Effects
+
+Every timeline entry is one **effect**, discriminated by `action`. They fall into
+five lanes: camera, navigation, cursor, interaction and timing.
+
+<Frame id="fx-grid" intent="effect-grid">
+  <div className="tk-fx-grid">
+    <Frame id="fx-zoom"><div className="tk-fx">zoom-in / out</div></Frame>
+    <Frame id="fx-highlight"><div className="tk-fx">highlight</div></Frame>
+    <Frame id="fx-cursor"><div className="tk-fx">cursor-move</div></Frame>
+  </div>
+</Frame>
+
+Interactions actually touch the app. `type-down` writes into a real field:
+
+<Frame id="fx-type" intent="email-field">
+  <input className="tk-fx-input" placeholder="type-down writes here…" aria-label="effects demo input" />
+</Frame>
+
+<DemoGif section="effects" caption="zoom → highlight → cursor → shake → type — the whole vocabulary in one pass." />
+
+<Divider />
+
+## Reference
+
+Shared optional fields on every effect: `frameId`, `delayBefore`, `delayAfter`,
+`note`. `easing` is one of `linear · ease-in · ease-out · ease-in-out · spring`.
+
+| Action | Key fields | Default duration |
+| --- | --- | --- |
+| `click` | `frameId`, `showRipple`, `soundProfile` | ~500ms |
+| `type-down` | `frameId`, `text`, `typingSpeed`, `mistakes` | `text.length × speed` |
+| `drag-and-drop` | `frameId`, `destFrameId`/`destX,destY` | 800ms |
+| `shake` | `frameId`, `intensity` | 500ms |
+| `zoom-in` | `frameId?`, `scale`, `transformOrigin` | 1200ms |
+| `zoom-out` | — | 900ms |
+| `scroll-up` / `scroll-down` | `distance` | 700ms |
+| `cursor-move` | `destFrameId`/`destX,destY`, `curve` | 700ms |
+| `highlight` | `frameId`, `dimOpacity`, `padding` | 1500ms |
+| `wait` | `duration` | 1000ms |
+
+All are strongly typed with Zod; the [timesheet](/timesheet) schema rejects an
+unplayable sheet before a single frame is recorded.

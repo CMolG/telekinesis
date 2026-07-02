@@ -1,0 +1,33 @@
+{
+  "name": "@telekinesis/docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Telekinesis documentation — a Nextra site that is itself a Telekinetic app and records its own tutorials.",
+  "scripts": {
+    "dev": "next dev --port 4311",
+    "build": "next build",
+    "start": "next start --port 4311",
+    "postbuild": "pagefind --site .next/server/app --output-path public/_pagefind",
+    "record:motion": "tsx scripts/record-sections.ts"
+  },
+  "dependencies": {
+    "@telekinesis/core": "workspace:*",
+    "@telekinesis/schema": "workspace:*",
+    "next": "^16.0.0",
+    "nextra": "^4.6.1",
+    "nextra-theme-docs": "^4.6.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@telekinesis/engine": "workspace:*",
+    "@telekinesis/render": "workspace:*",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "pagefind": "^1.3.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
+  }
+}

@@ -1,9 +1,28 @@
 packages:
   - "packages/*"
+  - "apps/*"
   - "playground"
+
+# Pin a single React version workspace-wide. nextra-theme-docs 4.6 ships code
+# compiled with the React Compiler targeting React 19, so the docs need 19; a
+# single override keeps core/engine/playground on the same copy (no duplicate
+# React, one set of @types).
+overrides:
+  react: ^19.2.0
+  react-dom: ^19.2.0
+  "@types/react": ^19.2.0
+  "@types/react-dom": ^19.2.0
+  # nextra-theme-docs@4.6 was built against zod ^4.1.12; zod 4.2+ made a missing
+  # `z.custom` field non-optional, which breaks the theme's Layout prop
+  # validation (it validates config without `children`). Pin Nextra's zod to the
+  # 4.1 line. Scoped so @telekinesis/schema keeps its own zod@3.
+  nextra>zod: 4.1.13
+  nextra-theme-docs>zod: 4.1.13
 
 allowBuilds:
   esbuild: true
+  # sharp is Next.js's native image optimiser (pulled in by the docs site).
+  sharp: true
 
 # esbuild (used by vite, tsup and vitest) needs its postinstall to place the
 # platform binary. pnpm defers build scripts by default; allow this one.

@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "Docs hero tour",
+    "description": "Sweep the hero, punch in on the CTA, then spotlight the motion pillar.",
+    "author": "telekinesis"
+  },
+  "url": "http://localhost:4311/?demo",
+  "resolution": { "width": 1280, "height": 720 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 400 },
+    { "action": "highlight", "frameId": "hero", "duration": 1200, "delayAfter": 200 },
+    { "action": "zoom-in", "frameId": "hero-cta", "scale": 1.18, "duration": 1000, "easing": "ease-out" },
+    { "action": "cursor-move", "destFrameId": "hero-cta", "duration": 650 },
+    { "action": "zoom-out", "duration": 800, "delayAfter": 200 },
+    { "action": "scroll-down", "distance": "viewport", "duration": 700, "delayAfter": 250 },
+    { "action": "highlight", "frameId": "pillars", "duration": 1100, "delayAfter": 150 },
+    { "action": "zoom-in", "frameId": "pillar-motion", "scale": 1.14, "duration": 900, "easing": "ease-out" },
+    { "action": "highlight", "frameId": "pillar-motion", "duration": 1000, "delayAfter": 200 },
+    { "action": "zoom-out", "duration": 800 },
+    { "action": "wait", "duration": 1200 }
+  ]
+}

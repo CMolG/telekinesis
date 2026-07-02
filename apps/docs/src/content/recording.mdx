@@ -1,0 +1,35 @@
+---
+title: Recording
+---
+
+# Recording
+
+`@telekinesis/engine` drives the page with Playwright and captures a **silent**
+video plus a timestamped `audio-map.json`. `@telekinesis/render` (ffmpeg) then
+either mixes audio into an MP4 or encodes a GIF.
+
+## The pipeline
+
+1. Launch Chromium with `recordVideo` at the timesheet resolution.
+2. Navigate and wait for `window.__telekinesis.ready`.
+3. Walk the timeline — visuals through the in-page runtime (awaited so the
+   animation is captured), real I/O through Playwright locators.
+4. Record `{ profile, asset, t }` for every sound-bearing action.
+5. Close the context (flushing the `.webm`) and write `audio-map.json`.
+
+## Audio — mixed after the fact
+
+Headless CI has no sound card, so we never play audio while recording. The
+renderer lays each cue at its exact millisecond offset with ffmpeg
+`adelay` + `amix`:
+
+```
+[1:a]adelay=2400:all=1[a1]; [2:a]adelay=3120:all=1[a2]; … amix=inputs=N[aout]
+```
+
+Deterministic, reproducible, and CI-friendly — no virtual audio servers.
+
+## GIFs skip audio
+
+A GIF carries no sound, so [GIF export](/gif-export) plugs straight into the
+silent `.webm` — no mixing step.

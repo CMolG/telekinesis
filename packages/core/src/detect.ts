@@ -21,6 +21,9 @@ export function isDemoMode(opts: DetectOptions = {}): boolean {
   if (opts.force) return true;
   if (typeof window === "undefined") return false;
   try {
+    // Studio mode implies demo mode: frames must register and the runtime must
+    // install so the editor can introspect and drive the page.
+    if (isStudioMode()) return true;
     if (typeof navigator !== "undefined" && navigator.webdriver === true) {
       return true;
     }
@@ -32,6 +35,23 @@ export function isDemoMode(opts: DetectOptions = {}): boolean {
     }
   } catch {
     /* defensive: never throw from detection */
+  }
+  return false;
+}
+
+/**
+ * Is the page being edited by the Telekinesis Studio? True when a
+ * `?telekinesis-studio` query param is present or `window.__TELEKINESIS_STUDIO__`
+ * is set. When true, `<TelekinesisStage>` also installs the `postMessage`
+ * bridge the Studio talks to.
+ */
+export function isStudioMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (new URLSearchParams(window.location.search).has("telekinesis-studio")) return true;
+    if ((window as unknown as Record<string, unknown>).__TELEKINESIS_STUDIO__ === true) return true;
+  } catch {
+    /* defensive */
   }
   return false;
 }

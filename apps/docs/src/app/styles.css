@@ -1,0 +1,178 @@
+/* Telekinesis docs — custom bits on top of the Nextra theme. */
+
+.tk-logo {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.tk-logo [aria-hidden] {
+  color: #7c5cff;
+}
+
+/* Brand header + divider images (from /public). */
+.tk-header {
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+  margin: 0.5rem 0 2rem;
+  box-shadow: 0 12px 40px -12px rgba(60, 40, 160, 0.35);
+}
+.tk-divider {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 3rem 0;
+  opacity: 0.9;
+}
+
+/* The per-section motion example. */
+.tk-demo {
+  margin: 1.5rem 0 2rem;
+}
+.tk-demo-stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(124, 92, 255, 0.25);
+  background:
+    radial-gradient(120% 120% at 0% 0%, rgba(124, 92, 255, 0.12), transparent 60%),
+    #0b0b14;
+  min-height: 120px;
+}
+.tk-demo-gif,
+.tk-demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.tk-demo-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: 1.5rem;
+  text-align: center;
+  color: #a9a9c7;
+  font-size: 0.9rem;
+}
+.tk-demo-missing code {
+  background: rgba(124, 92, 255, 0.16);
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+.tk-demo-play {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 0.45rem 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: #7c5cff;
+  color: white;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 6px 20px -6px rgba(124, 92, 255, 0.8);
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.tk-demo-play:hover {
+  transform: translateY(-1px);
+}
+.tk-demo-play:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.tk-demo-caption {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: #8b8ba7;
+  text-align: center;
+}
+
+/* Landing hero + pillars used on the index page. */
+.tk-hero {
+  padding: 1rem 0 0.5rem;
+}
+.tk-hero h1 {
+  font-size: 2.4rem;
+  line-height: 1.1;
+  margin: 0.4rem 0;
+}
+.tk-cta {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 10px;
+  background: #7c5cff;
+  color: white !important;
+  font-weight: 600;
+  text-decoration: none;
+}
+.tk-pillars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.tk-pillar {
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 92, 255, 0.2);
+  background: rgba(124, 92, 255, 0.05);
+}
+.tk-pillar h3 {
+  margin: 0.2rem 0 0.4rem;
+}
+
+/* Effects showcase grid. */
+.tk-fx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.tk-fx {
+  padding: 1rem;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid rgba(124, 92, 255, 0.25);
+  background: rgba(124, 92, 255, 0.06);
+  font-weight: 600;
+}
+.tk-fx-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(124, 92, 255, 0.35);
+  background: #0b0b14;
+  color: #ececff;
+  font-size: 1rem;
+}
+
+/* Framed JSON / code shown as a zoom target. */
+.tk-code {
+  margin: 0;
+  padding: 1rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid rgba(124, 92, 255, 0.25);
+  background: #0b0b14;
+  color: #d7d7f5;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* Poster card used where we don't yet have a screenshot (studio, gif). */
+.tk-shot {
+  padding: 1.75rem;
+  border-radius: 14px;
+  border: 1px solid rgba(124, 92, 255, 0.28);
+  background:
+    radial-gradient(120% 120% at 100% 0%, rgba(124, 92, 255, 0.18), transparent 55%),
+    #0b0b14;
+}
+.tk-shot h3 {
+  margin-top: 0;
+}

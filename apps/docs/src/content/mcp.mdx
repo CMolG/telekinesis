@@ -1,0 +1,27 @@
+---
+title: MCP (AI)
+---
+
+# AI: the MCP server
+
+`@telekinesis/mcp` lets an LLM author timesheets against your **live** frames,
+guarded by the JSON Schema so it can't emit an unplayable sheet.
+
+```json
+{ "mcpServers": { "telekinesis": { "command": "telekinesis-mcp" } } }
+```
+
+## Tools
+
+- `extract_ui_context({ url })` — list every registered `<TelekineticFrame>` on a
+  running page (id, intent, viewport rect). Append `?demo` to force demo mode.
+- `generate_timesheet({ url | frames, goal })` — a **schema-validated** draft to
+  refine.
+
+## Resources
+
+- `telekinesis://schema/timesheet` — the full JSON Schema (refs inlined).
+- `telekinesis://effects` — the action + sound catalog.
+
+The model reasons over real frames; the schema is the guardrail. Refine the
+draft by hand or drop it into the [Studio](/studio) to tune it visually.

@@ -1,0 +1,40 @@
+---
+title: CLI
+---
+
+# CLI
+
+```bash
+telekinesis <command> [options]
+```
+
+| Command | What it does |
+| --- | --- |
+| `record <sheet>` | Record a demo — `--format mp4 \| gif \| both` |
+| `gif <sheet>` | Record and export a looping GIF |
+| `preview <sheet>` | Open a headed browser and perform the sheet (no file) |
+| `studio` | Launch the [Studio](/studio) editor (`--port`, `--target`) |
+| `init` | Scaffold a starter timesheet |
+| `sounds` | Synthesize a starter sound pack with ffmpeg |
+
+## record
+
+```bash
+telekinesis record flow.timesheet.json -o demo.mp4          # MP4 (default)
+telekinesis record flow.timesheet.json --format both        # MP4 + GIF
+telekinesis record flow.timesheet.json -u http://localhost:3000?demo
+```
+
+Options: `-o/--output`, `-f/--format`, `-u/--url`, `-s/--sounds`,
+`--gif-fps`, `--gif-width`, `--no-gifski`, `--headed`, `--keep-temp`.
+
+## Packages
+
+| Package | Role |
+| --- | --- |
+| `@telekinesis/schema` | Zod effects + timesheet + `layoutTimesheet` — the shared contract |
+| `@telekinesis/core` | `<TelekineticFrame>`, `<TelekinesisStage>`, runtime, Studio bridge |
+| `@telekinesis/engine` | Playwright recorder → silent video + `audio-map.json` |
+| `@telekinesis/render` | ffmpeg: audio mixing (MP4) + GIF export |
+| `@telekinesis/cli` | `record` / `gif` / `preview` / `studio` / `init` / `sounds` |
+| `@telekinesis/mcp` | MCP server for AI-authored timesheets |

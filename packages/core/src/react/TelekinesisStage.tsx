@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { TimesheetInput } from "@telekinesis/schema";
-import { isDemoMode } from "../detect";
+import { isDemoMode, isStudioMode } from "../detect";
 import { play } from "../player";
 import { installRuntime, type TelekinesisRuntime } from "../runtime";
+import { installStudioBridge } from "../studio-bridge";
 import { useIsomorphicLayoutEffect } from "./useIsomorphicLayoutEffect";
 
 export interface TelekinesisStageProps {
@@ -35,10 +36,14 @@ export function TelekinesisStage(props: TelekinesisStageProps): null {
     const runtime = installRuntime({ soundBase: props.soundBase });
     props.onReady?.(runtime);
 
+    // In Studio mode, expose the runtime over postMessage so the editor (which
+    // embeds this app in an iframe) can introspect and drive it.
+    const disposeBridge = isStudioMode() ? installStudioBridge() : undefined;
+
     const injected = (window as unknown as Record<string, TimesheetInput>)
       .__TELEKINESIS_TIMESHEET__;
     const sheet = props.timesheet ?? injected;
-    if (!props.autoplay || !sheet) return;
+    if (!props.autoplay || !sheet) return disposeBridge;
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
@@ -57,6 +62,7 @@ export function TelekinesisStage(props: TelekinesisStageProps): null {
     return () => {
       clearTimeout(timer);
       controller.abort();
+      disposeBridge?.();
     };
   }, [demo]); // eslint-disable-line react-hooks/exhaustive-deps
 

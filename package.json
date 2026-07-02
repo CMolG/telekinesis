@@ -13,6 +13,10 @@
     "build": "pnpm -r --filter \"./packages/*\" build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "docs": "pnpm --filter @telekinesis/docs dev",
+    "docs:build": "pnpm --filter @telekinesis/docs build",
+    "docs:motion": "pnpm --filter @telekinesis/docs record:motion",
+    "studio": "pnpm --filter @telekinesis/studio dev",
     "playground": "pnpm --filter @telekinesis/playground dev",
     "lint": "echo \"(lint not configured yet)\""
   },

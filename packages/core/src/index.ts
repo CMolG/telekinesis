@@ -5,7 +5,15 @@
  * framework-agnostic engine (registry, cursor, overlay, effects, player) and
  * the `window.__telekinesis` bridge the recorder talks to.
  */
-export { isDemoMode, setForcedDemoMode, type DetectOptions } from "./detect";
+export { isDemoMode, isStudioMode, setForcedDemoMode, type DetectOptions } from "./detect";
+
+export {
+  installStudioBridge,
+  createStudioClient,
+  type StudioClient,
+  type StudioClientOptions,
+  type StudioPlayOptions,
+} from "./studio-bridge";
 
 export { play, type PlayOptions } from "./player";
 export { runEffect, type RunContext } from "./effects";

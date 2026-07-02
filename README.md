@@ -95,11 +95,14 @@ Write `flow.timesheet.json`:
 }
 ```
 
-Preview, then record:
+Preview, record, or edit it visually:
 
 ```bash
-telekinesis preview flow.timesheet.json     # headed, no file
+telekinesis preview flow.timesheet.json          # headed, no file
 telekinesis record  flow.timesheet.json -o demo.mp4
+telekinesis record  flow.timesheet.json --format both   # MP4 + GIF
+telekinesis gif     flow.timesheet.json -o demo.gif     # a looping GIF
+telekinesis studio  --target http://localhost:3000      # the visual editor (:57174)
 ```
 
 ## See it now (no install)
@@ -107,11 +110,19 @@ telekinesis record  flow.timesheet.json -o demo.mp4
 ```bash
 git clone <this repo> && cd telekinesis
 pnpm install
-pnpm playground        # open http://localhost:5173 and press “▶ Play demo”
+pnpm exec playwright install chromium   # one-time, for recording
+
+pnpm docs          # the documentation — a Telekinetic app — at :4311
+pnpm docs:motion   # record every docs section into a GIF (dogfooding)
+pnpm studio        # the CapCut-style timesheet editor at :57174
+pnpm playground    # the component sandbox at :5173
 ```
 
-The playground forces demo mode, so the full cinematic layer runs live in your
-browser — exactly what the recorder would capture.
+The docs and playground force demo mode, so the full cinematic layer runs live
+in your browser — exactly what the recorder would capture. The **Studio**
+(a rarely-used local port, 57174) embeds any Telekinetic app, shows which
+components are telekinetic, and lets you tune timing and effects like a video
+editor, then render a GIF or MP4.
 
 ## Effects
 
@@ -138,12 +149,15 @@ The model never hallucinates an unplayable sheet: the
 
 | Package | Role |
 | --- | --- |
-| [`@telekinesis/schema`](packages/schema) | Zod effects + timesheet + sound catalog + JSON Schema — the shared contract |
-| [`@telekinesis/core`](packages/core) | `<TelekineticFrame>`, `<TelekinesisStage>`, registry, cursor, effects engine, `window.__telekinesis` |
+| [`@telekinesis/schema`](packages/schema) | Zod effects + timesheet + sound catalog + JSON Schema + `layoutTimesheet` — the shared contract |
+| [`@telekinesis/core`](packages/core) | `<TelekineticFrame>`, `<TelekinesisStage>`, registry, cursor, effects engine, `window.__telekinesis`, the Studio `postMessage` bridge |
 | [`@telekinesis/engine`](packages/engine) | Playwright recorder → silent video + `audio-map.json` |
-| [`@telekinesis/cli`](packages/cli) | `record` / `preview` / `init` / `sounds` + the ffmpeg mixer |
+| [`@telekinesis/render`](packages/render) | ffmpeg: mix timed audio into an MP4, and export high-quality GIFs (palette or gifski) |
+| [`@telekinesis/cli`](packages/cli) | `record` / `gif` / `preview` / `studio` / `init` / `sounds` |
 | [`@telekinesis/mcp`](packages/mcp) | MCP server: `extract_ui_context`, `generate_timesheet` |
-| [`playground`](playground) | a Vite demo app that previews the cinematics live |
+| [`apps/docs`](apps/docs) | the Nextra documentation — itself a Telekinetic app that records its own tutorials |
+| [`apps/studio`](apps/studio) | the Studio: a CapCut-style visual timesheet editor |
+| [`playground`](playground) | a Vite sandbox that previews the cinematics live |
 
 ## Develop
 
@@ -167,7 +181,10 @@ Built inside-out (UI → AI). Status of the original backlog:
 - [x] **Epic 4 — Recorder**: Playwright runner, sequential executor, audio-map extraction
 - [x] **Epic 5 — CLI + audio**: `record`/`preview`/`init`/`sounds`, ffmpeg mixer (Option B), cleanup
 - [x] **Epic 6 — DX**: playground app, CI, docs
-- [ ] Polish: real sound pack, `drag-and-drop` self-mode fidelity, framework-agnostic (`/vanilla`) entry, visual-regression tests, hosted docs site
+- [x] **Epic 7 — Rendering**: `@telekinesis/render` — GIF export (ffmpeg palette, auto-gifski) alongside the MP4 mixer
+- [x] **Epic 8 — Docs**: a Nextra site that is itself a Telekinetic app and records its own per-section tutorials
+- [x] **Epic 9 — Studio**: a CapCut-style visual timesheet editor + the `window.__telekinesis` `postMessage` bridge
+- [ ] Polish: real sound pack, `drag-and-drop` self-mode fidelity, framework-agnostic (`/vanilla`) entry, visual-regression tests, timeline drag-to-reorder in the Studio
 
 ## Contributing
 
