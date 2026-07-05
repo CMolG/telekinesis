@@ -1,27 +1,36 @@
 <div align="center">
 
-# ◑ Telekinesis
+<img src="public/telekinesis_header.png" alt="Telekinesis — your product films its own demo" width="100%" />
 
-**Cinematic, AI-orchestrated product demo videos — your real app records itself.**
+**Your product films its own demo.**
 
-Mark up your UI once. An LLM (or you) writes a *timesheet*. Playwright performs
-it — ghost cursor, smooth zoom, spotlight, typing, sound — and renders an
-always-up-to-date demo video.
+Mark up your real UI once. An LLM (or you) writes a *timesheet*. Telekinesis
+performs it live in the browser — ghost cursor, smooth zoom, spotlight,
+real clicks and typing, sound — and hands you a video that's never out of date.
 
-_Open source · MIT · TypeScript · React/Next · Playwright · MCP_
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6.svg)
+![Playwright](https://img.shields.io/badge/powered%20by-Playwright-45ba4b.svg)
 
 </div>
 
 ---
 
-## Why
+## The problem
 
-Hand-made product demos rot the moment the UI changes. Telekinesis treats the
-demo as **code**: a declarative timesheet performed against your live app. Change
-the UI, re-run one command, get a fresh video — narrated like a human did it.
+Product demos are hand-made, and hand-made things rot. Someone records a
+walkthrough, ships it to the landing page or the docs, and six weeks later the
+button has moved, the copy changed, and the video is quietly lying to
+everyone who watches it.
 
-The trick (from [navigator.webdriver](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
-to cinematography):
+Telekinesis treats the demo as **code**, not a recording you maintain by
+hand. Describe the tour as data, run one command, and get a fresh,
+pixel-accurate video straight from your live app — no screen-recording
+software, no editing timeline, no re-shoots.
+
+The trick (borrowed from [navigator.webdriver](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/webdriver)
+and pointed at cinematography instead of bot detection):
 
 ```
             Real visitor                         Playwright (or ?demo)
@@ -34,8 +43,25 @@ to cinematography):
         └─────────────────┘                      └──────────────────┘
 ```
 
-Same component, two lives. For users it compiles away to nothing. Under the
-recorder it becomes a controllable, measurable target.
+Same component, two lives. Ship it and it compiles away to nothing for real
+users. Point the recorder at it and it becomes a controllable, measurable
+stage.
+
+## What you get
+
+- **Real interactions, not screen capture.** Playwright drives your actual
+  app — real clicks, real typing, real drag-and-drop — so the video can never
+  drift from what the product actually does.
+- **Cinematic motion for free.** Smooth zoom, spotlight, a ghost cursor,
+  shake, highlight — a small vocabulary of effects that read as intentional,
+  human-directed camera work.
+- **Sound that matches the action.** ffmpeg mixes clicks and keystrokes at
+  their exact timestamps. No microphone, no audio hardware, works in CI.
+- **AI-authored, schema-guarded.** Hand an LLM your UI's frame map through
+  the MCP server and it drafts a timesheet — validated against a JSON Schema,
+  so it can't hand you something unplayable.
+- **A visual editor when you want one.** The Studio is a CapCut-style
+  timeline for tuning a timesheet by eye instead of by hand.
 
 ## How it works
 
@@ -108,7 +134,7 @@ telekinesis studio  --target http://localhost:3000      # the visual editor (:57
 ## See it now (no install)
 
 ```bash
-git clone <this repo> && cd telekinesis
+git clone https://github.com/CMolG/telekinesis.git && cd telekinesis
 pnpm install
 pnpm exec playwright install chromium   # one-time, for recording
 
@@ -123,6 +149,10 @@ in your browser — exactly what the recorder would capture. The **Studio**
 (a rarely-used local port, 57174) embeds any Telekinetic app, shows which
 components are telekinetic, and lets you tune timing and effects like a video
 editor, then render a GIF or MP4.
+
+<div align="center">
+<img src="public/telekinesis_divider.png" alt="" width="60%" />
+</div>
 
 ## Effects
 
@@ -171,25 +201,22 @@ pnpm playground      # live demo
 
 Architecture deep-dive: [`docs/architecture.md`](docs/architecture.md).
 
-## Roadmap
-
-Built inside-out (UI → AI). Status of the original backlog:
-
-- [x] **Epic 1 — Core UI**: frame registry, `<TelekineticFrame>`, ghost cursor, zoom/highlight engine
-- [x] **Epic 2 — Schemas**: Zod effects + timesheet, sound profiles, JSON Schema export
-- [x] **Epic 3 — MCP**: `extract_ui_context`, `generate_timesheet`, schema resources
-- [x] **Epic 4 — Recorder**: Playwright runner, sequential executor, audio-map extraction
-- [x] **Epic 5 — CLI + audio**: `record`/`preview`/`init`/`sounds`, ffmpeg mixer (Option B), cleanup
-- [x] **Epic 6 — DX**: playground app, CI, docs
-- [x] **Epic 7 — Rendering**: `@telekinesis/render` — GIF export (ffmpeg palette, auto-gifski) alongside the MP4 mixer
-- [x] **Epic 8 — Docs**: a Nextra site that is itself a Telekinetic app and records its own per-section tutorials
-- [x] **Epic 9 — Studio**: a CapCut-style visual timesheet editor + the `window.__telekinesis` `postMessage` bridge
-- [ ] Polish: real sound pack, `drag-and-drop` self-mode fidelity, framework-agnostic (`/vanilla`) entry, visual-regression tests, timeline drag-to-reorder in the Studio
-
 ## Contributing
 
-Issues and PRs welcome. The contract lives in `@telekinesis/schema` — extend it
-there first, and every other package follows.
+Telekinesis is built in the open and built for the community using it — issues,
+ideas, and PRs are genuinely welcome, not just tolerated. The contract lives in
+`@telekinesis/schema`: extend it there first, and every other package follows.
+
+Good first stops:
+
+- Found a bug or a rough edge? [Open an issue](https://github.com/CMolG/telekinesis/issues).
+- Building something with it? Show us — a demo video from your own app is the
+  best kind of bug report.
+- Want to add an effect, a sound profile, or a framework target? Start a
+  discussion before the PR so the schema stays coherent.
+
+If Telekinesis saves you from recording another demo by hand, a star helps
+other people find it.
 
 ## License
 
