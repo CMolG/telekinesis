@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { BrowserContext, Page } from "@playwright/test";
 import { ensureFfmpeg } from "@telekinesis/render";
 import { execa } from "execa";
 
@@ -14,6 +14,25 @@ export async function waitForRuntime(page: Page, timeout = 15_000): Promise<void
     undefined,
     { timeout },
   );
+}
+
+/**
+ * Make the playground's `setForcedDemoMode(true)` inert for every page in
+ * `context`. The playground force-enables demo mode at module scope for all
+ * visitors (`playground/src/main.tsx`) — a deliberate showcase choice, not a
+ * bug — so specs that need `isDemoMode()`'s *real* detection conditions
+ * (`navigator.webdriver`, `?demo`) to decide the outcome must first take the
+ * force flag out of play. The no-op setter is load-bearing: the app assigns
+ * `window.__TELEKINESIS_FORCE__ = true` from strict-mode ESM, where writing
+ * to a getter-only property would throw and crash the app on boot.
+ */
+export async function neutralizeForcedDemoMode(context: BrowserContext): Promise<void> {
+  await context.addInitScript(() => {
+    Object.defineProperty(window, "__TELEKINESIS_FORCE__", {
+      get: () => false,
+      set: () => {},
+    });
+  });
 }
 
 let ffmpegProbe: boolean | undefined;

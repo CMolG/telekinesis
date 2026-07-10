@@ -6,5 +6,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["helpers.ts", "playwright.config.ts", "tests", "scripts"]
+  "include": ["global.d.ts", "helpers.ts", "playwright.config.ts", "tests", "scripts"]
 }
