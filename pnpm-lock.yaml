@@ -33,13 +33,13 @@ importers:
         version: link:../../packages/schema
       next:
         specifier: ^16.0.0
-        version: 16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       nextra:
         specifier: ^4.6.1
-        version: 4.6.1(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+        version: 4.6.1(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       nextra-theme-docs:
         specifier: ^4.6.1
-        version: 4.6.1(@types/react@19.2.17)(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(nextra@4.6.1(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
+        version: 4.6.1(@types/react@19.2.17)(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(nextra@4.6.1(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
       react:
         specifier: ^19.2.0
         version: 19.2.7
@@ -123,6 +123,34 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.0)
+
+  e2e:
+    dependencies:
+      '@playwright/test':
+        specifier: ^1.49.1
+        version: 1.61.1
+      '@telekinesis/engine':
+        specifier: workspace:*
+        version: link:../packages/engine
+      '@telekinesis/render':
+        specifier: workspace:*
+        version: link:../packages/render
+      '@telekinesis/schema':
+        specifier: workspace:*
+        version: link:../packages/schema
+      execa:
+        specifier: ^9.5.2
+        version: 9.6.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      tsx:
+        specifier: ^4.19.2
+        version: 4.22.4
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
 
   packages/cli:
     dependencies:
@@ -1454,6 +1482,11 @@ packages:
     resolution: {integrity: sha512-Fa2Iyw7kaDRzGMfNYNUXNW2zbL5FQVDgSOcbDHdzBrDEdpqOqg8TcZ68F22ol6NJ9IGzvUdmeyZypLW5dyhqsg==}
     cpu: [x64]
     os: [win32]
+
+  '@playwright/test@1.61.1':
+    resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   '@react-aria/focus@3.22.1':
     resolution: {integrity: sha512-CPxtkyrBi/HYY5P3lE/57sQ6qfa0lN8E55TOm89H0kNGv0lKt+/0zP7lWERzBjRr5IxBVrQX4gFEowBN52LPaA==}
@@ -4737,6 +4770,10 @@ snapshots:
   '@pagefind/windows-x64@1.5.2':
     optional: true
 
+  '@playwright/test@1.61.1':
+    dependencies:
+      playwright: 1.61.1
+
   '@react-aria/focus@3.22.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@swc/helpers': 0.5.23
@@ -6820,7 +6857,7 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       '@next/env': 16.2.9
       '@swc/helpers': 0.5.15
@@ -6839,18 +6876,19 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.2.9
       '@next/swc-win32-arm64-msvc': 16.2.9
       '@next/swc-win32-x64-msvc': 16.2.9
+      '@playwright/test': 1.61.1
       sharp: 0.34.5
     transitivePeerDependencies:
       - '@babel/core'
       - babel-plugin-macros
 
-  nextra-theme-docs@4.6.1(@types/react@19.2.17)(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(nextra@4.6.1(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
+  nextra-theme-docs@4.6.1(@types/react@19.2.17)(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(nextra@4.6.1(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
     dependencies:
       '@headlessui/react': 2.2.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       clsx: 2.1.1
-      next: 16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      next: 16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       next-themes: 0.4.6(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      nextra: 4.6.1(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
+      nextra: 4.6.1(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3)
       react: 19.2.7
       react-compiler-runtime: 19.1.0-rc.3(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
@@ -6862,7 +6900,7 @@ snapshots:
       - immer
       - use-sync-external-store
 
-  nextra@4.6.1(next@16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3):
+  nextra@4.6.1(next@16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(typescript@5.9.3):
     dependencies:
       '@formatjs/intl-localematcher': 0.6.2
       '@headlessui/react': 2.2.10(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -6883,7 +6921,7 @@ snapshots:
       mdast-util-gfm: 3.1.0
       mdast-util-to-hast: 13.2.1
       negotiator: 1.0.0
-      next: 16.2.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      next: 16.2.9(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react: 19.2.7
       react-compiler-runtime: 19.1.0-rc.3(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
