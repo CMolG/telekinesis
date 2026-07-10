@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "shake",
+    "description": "A sharp anticipation shake on the CTA — impossible to miss, gone in a blink."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-cta", "duration": 550 },
+    { "action": "shake", "frameId": "gal-cta", "intensity": "high", "duration": 650, "delayAfter": 250 },
+    { "action": "wait", "duration": 1650 }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "wait",
+    "description": "A held spotlight, a deliberate pause, then the payoff slides into view."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "highlight", "frameId": "gal-cta", "duration": 400, "delayAfter": 200 },
+    { "action": "wait", "duration": 1500 },
+    { "action": "highlight", "frameId": "gal-done", "duration": 600, "delayAfter": 400 }
+  ]
+}
