@@ -63,6 +63,8 @@ export interface FfprobeStream {
   height?: number;
   r_frame_rate?: string;
   duration?: string;
+  /** Only populated when `ffprobeJson` is called with `["-count_packets"]`. */
+  nb_read_packets?: string;
   [key: string]: unknown;
 }
 
@@ -83,11 +85,15 @@ export interface FfprobeOutput {
  * Run `ffprobe` on `file` and parse its JSON output (container format + stream
  * metadata). Bounded by a timeout so a hung probe on a corrupt file can't
  * outlive the Playwright test timeout as an orphaned process.
+ *
+ * `extraArgs` are inserted before `file`, e.g. `["-count_packets"]` to
+ * populate each stream's `nb_read_packets` (ffprobe only counts packets when
+ * asked — it's not part of the default `-show_streams` output).
  */
-export async function ffprobeJson(file: string): Promise<FfprobeOutput> {
+export async function ffprobeJson(file: string, extraArgs: string[] = []): Promise<FfprobeOutput> {
   const { stdout } = await execa(
     "ffprobe",
-    ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", file],
+    ["-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", ...extraArgs, file],
     { timeout: 30_000 },
   );
   return JSON.parse(stdout) as FfprobeOutput;
