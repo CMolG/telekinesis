@@ -1,5 +1,5 @@
 import * as React from "react";
-import { TelekineticFrame, TelekinesisStage } from "@telekinesis/core";
+import { rectCenter, TelekineticFrame, TelekinesisStage, type Point } from "@telekinesis/core";
 
 /**
  * The effects gallery — a single compact 960×540 stage built to be filmed,
@@ -118,10 +118,12 @@ export default function GalleryApp(): React.ReactElement {
 
 /**
  * The one pair on this page with real behavior instead of static chrome:
- * `gal-drag-src`'s chip is a plain pointer-driven drag — mousedown, then
- * window-level mousemove/mouseup while dragging — deliberately *not* HTML5
+ * `gal-drag-src`'s chip is a plain pointer-driven drag — `pointerdown`
+ * captures the pointer on the chip itself, then `pointermove`/`pointerup`
+ * (plus `pointercancel`/`lostpointercapture`) — deliberately *not* HTML5
  * `draggable`, because Playwright's `Locator.dragTo()` drives a drag purely
- * by dispatching real mousedown/mousemove/mouseup (see
+ * by dispatching real mouse input, which Chromium synthesizes into real
+ * Pointer Events the same way genuine hardware would (see
  * `packages/engine/src/record.ts`); a native HTML5 drag needs `dragstart`/
  * `dragover`/`drop`, which that never fires. Everything else in the gallery
  * is inert chrome the camera performs *around* — this is the one set that
@@ -138,31 +140,58 @@ function DragDemo(): React.ReactElement {
   const [offset, setOffset] = React.useState<Point | null>(null);
   const [dragging, setDragging] = React.useState(false);
   const [dropped, setDropped] = React.useState(false);
-  const chipRef = React.useRef<HTMLDivElement | null>(null);
   const dropRef = React.useRef<HTMLDivElement | null>(null);
+  // Removes the in-flight drag's chip listeners (pointermove/up/cancel/
+  // lostpointercapture). Set for the duration of a drag, cleared once it
+  // ends; both a normal end and the unmount effect below may call it, so
+  // it's idempotent (removeEventListener on an already-removed listener is
+  // a no-op) and clears itself.
+  const removeDragListenersRef = React.useRef<(() => void) | null>(null);
 
-  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>): void {
+  // Safety net for a drag interrupted by unmount (this component removed
+  // from the tree — e.g. a route change — mid-drag, before pointerup/
+  // pointercancel ever fires). Without this the chip's listeners would
+  // outlive the component; no need to also touch React state here — an
+  // unmounted component has nothing left to render.
+  React.useEffect(() => {
+    return () => removeDragListenersRef.current?.();
+  }, []);
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>): void {
     if (dropped) return; // settled — this demo only plays once
     e.preventDefault();
+    const chip = e.currentTarget;
     const startPointer: Point = { x: e.clientX, y: e.clientY };
     const startOffset: Point = offset ?? { x: 0, y: 0 };
+    chip.setPointerCapture(e.pointerId);
     setDragging(true);
 
-    const handleMove = (ev: MouseEvent) => {
+    // Pointer capture retargets every later event for this pointerId to
+    // `chip`, wherever the pointer physically is — so these listen on the
+    // chip itself, not `window`: a real drag released outside the viewport
+    // still delivers pointerup here instead of leaving the chip stuck.
+    const handleMove = (ev: PointerEvent) => {
       setOffset({
         x: startOffset.x + (ev.clientX - startPointer.x),
         y: startOffset.y + (ev.clientY - startPointer.y),
       });
     };
 
-    const handleUp = () => {
-      window.removeEventListener("mousemove", handleMove);
-      window.removeEventListener("mouseup", handleUp);
+    const removeDragListeners = () => {
+      chip.removeEventListener("pointermove", handleMove);
+      chip.removeEventListener("pointerup", handleUp);
+      chip.removeEventListener("pointercancel", handleCancel);
+      chip.removeEventListener("lostpointercapture", handleCancel);
+      removeDragListenersRef.current = null;
+    };
+
+    const endDrag = (settle: boolean) => {
+      removeDragListeners();
       setDragging(false);
 
-      const chipRect = chipRef.current?.getBoundingClientRect();
+      const chipRect = chip.getBoundingClientRect();
       const dropRect = dropRef.current?.getBoundingClientRect();
-      if (chipRect && dropRect && centerInside(chipRect, dropRect)) {
+      if (settle && dropRect && centerInside(chipRect, dropRect)) {
         // Settle exactly centered over the dropzone, whatever offset got it
         // there — an additive correction on top of the live drag offset.
         const chipCenter = rectCenter(chipRect);
@@ -176,26 +205,31 @@ function DragDemo(): React.ReactElement {
         });
         setDropped(true);
       } else {
-        setOffset(null); // missed the dropzone — snap back home
+        setOffset(null); // missed the dropzone, or the drag was cancelled
       }
     };
 
-    window.addEventListener("mousemove", handleMove);
-    window.addEventListener("mouseup", handleUp);
+    const handleUp = () => endDrag(true);
+    // pointercancel (browser-initiated, e.g. a gesture takeover) and
+    // lostpointercapture (capture released for any other reason without an
+    // up/cancel) both mean the drag ended without a real drop: snap back,
+    // same as missing the dropzone.
+    const handleCancel = () => endDrag(false);
+
+    chip.addEventListener("pointermove", handleMove);
+    chip.addEventListener("pointerup", handleUp);
+    chip.addEventListener("pointercancel", handleCancel);
+    chip.addEventListener("lostpointercapture", handleCancel);
+    removeDragListenersRef.current = removeDragListeners;
   }
 
   return (
     <div className="gallery-drag-row">
       <TelekineticFrame id="gal-drag-src" intent="draggable-item">
         <div
-          ref={chipRef}
-          className={
-            "gallery-chip" +
-            (dragging ? " is-dragging" : "") +
-            (dropped ? " is-dropped" : "")
-          }
+          className={"gallery-chip" + (dragging ? " dragging" : "") + (dropped ? " is-dropped" : "")}
           style={offset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
-          onMouseDown={handleMouseDown}
+          onPointerDown={handlePointerDown}
         >
           Record demo
         </div>
@@ -204,21 +238,12 @@ function DragDemo(): React.ReactElement {
         →
       </span>
       <TelekineticFrame id="gal-drag-dest" intent="drop-zone">
-        <div ref={dropRef} className={"gallery-dropzone" + (dropped ? " is-filled" : "")}>
+        <div ref={dropRef} className={"gallery-dropzone" + (dropped ? " filled" : "")}>
           {dropped ? "" : "Drop here"}
         </div>
       </TelekineticFrame>
     </div>
   );
-}
-
-interface Point {
-  x: number;
-  y: number;
-}
-
-function rectCenter(r: DOMRect): Point {
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 }
 
 /** Is `inner`'s center point inside `outer`? The standard "did you drop it here" test. */
