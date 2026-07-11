@@ -1,4 +1,4 @@
-import type { Effect, SoundProfile } from "@telekinesis/schema";
+import { planTyping, type Effect, type SoundProfile } from "@telekinesis/schema";
 import type { GhostCursor } from "./cursor";
 import { cssEasing, jsEasing } from "./easing";
 import { rectCenter, viewportAnchor, type Point } from "./geometry";
@@ -202,10 +202,6 @@ function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function randomLetter(): string {
-  return String.fromCharCode(97 + Math.floor(Math.random() * 26));
-}
-
 async function typeInto(
   el: HTMLElement,
   text: string,
@@ -223,18 +219,22 @@ async function typeInto(
   };
 
   let current = read();
-  for (const ch of [...text]) {
+  // `startNonEmpty` preserves the original behavior exactly: a typo could
+  // already be planned on the very first character typed here if the field
+  // came in non-empty (see planTyping's doc comment).
+  const steps = planTyping(text, mistakes, { startNonEmpty: current.length > 0 });
+  for (const step of steps) {
     if (signal?.aborted) return;
-    if (mistakes && current.length > 0 && Math.random() < 0.06) {
-      write(current + randomLetter());
+    if (step.typo) {
+      write(current + step.typo);
       onChar("x");
       await sleep(speed, signal);
       write(current); // backspace the typo
       await sleep(speed, signal);
     }
-    current += ch;
+    current += step.char;
     write(current);
-    onChar(ch);
+    onChar(step.char);
     await sleep(speed, signal);
   }
 }

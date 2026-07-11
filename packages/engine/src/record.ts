@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   parseTimesheet,
+  planTyping,
   SOUND_PROFILES,
   type Effect,
   type SoundProfile,
@@ -139,9 +140,28 @@ async function runEffectOnPage(
     case "type-down": {
       const field = await editable(frameLocator(page, eff.frameId));
       await field.click({ force: true });
-      for (const ch of [...eff.text]) {
+      // `planTyping` is the same pure decision function self-mode `typeInto`
+      // (core/effects.ts) uses, so a recorded typo has identical shape/odds
+      // to a live-preview one. With `mistakes` false (the default) this
+      // returns one plain step per character and the loop below reduces to
+      // exactly the previous behavior.
+      const steps = planTyping(eff.text, eff.mistakes);
+      for (const step of steps) {
+        if (step.typo) {
+          // Real wrong keystroke, a beat, a real Backspace, another beat —
+          // mirrors typeInto's typo+correction rhythm (write, pause,
+          // backspace, pause) with actual Playwright input instead of a
+          // synthetic DOM write. The backspace itself stays unmarked, same
+          // as self mode: only the wrong keystroke and the eventual correct
+          // one make a sound.
+          mark(eff.soundProfile);
+          await field.pressSequentially(step.typo, { delay: 0 });
+          await page.waitForTimeout(eff.typingSpeed);
+          await field.press("Backspace");
+          await page.waitForTimeout(eff.typingSpeed);
+        }
         mark(eff.soundProfile);
-        await field.pressSequentially(ch, { delay: 0 });
+        await field.pressSequentially(step.char, { delay: 0 });
         await page.waitForTimeout(eff.typingSpeed);
       }
       return;
