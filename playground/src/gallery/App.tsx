@@ -159,18 +159,32 @@ function DragDemo(): React.ReactElement {
 
   function handlePointerDown(e: React.PointerEvent<HTMLDivElement>): void {
     if (dropped) return; // settled — this demo only plays once
+    // Reentrancy/input guards: `dragging` blocks a second pointer from
+    // starting a concurrent drag session while one is already in flight
+    // (which would attach a second, independent set of listeners onto the
+    // same chip); `isPrimary`/`button` restrict this to a single primary
+    // contact point via the primary (left) mouse button, same as any other
+    // drag-initiating control.
+    if (dragging || !e.isPrimary || e.button !== 0) return;
     e.preventDefault();
     const chip = e.currentTarget;
+    const pointerId = e.pointerId;
     const startPointer: Point = { x: e.clientX, y: e.clientY };
     const startOffset: Point = offset ?? { x: 0, y: 0 };
-    chip.setPointerCapture(e.pointerId);
+    chip.setPointerCapture(pointerId);
     setDragging(true);
 
-    // Pointer capture retargets every later event for this pointerId to
+    // Pointer capture retargets every later event for *this* pointerId to
     // `chip`, wherever the pointer physically is — so these listen on the
     // chip itself, not `window`: a real drag released outside the viewport
     // still delivers pointerup here instead of leaving the chip stuck.
+    // Capture only retargets the captured pointer's own events though — it
+    // doesn't stop some other, uncaptured pointer (a second finger, say)
+    // from also dispatching pointermove/up/cancel at the chip mid-drag — so
+    // every handler below re-checks `ev.pointerId` against the pointer that
+    // actually started this drag before acting on it.
     const handleMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
       setOffset({
         x: startOffset.x + (ev.clientX - startPointer.x),
         y: startOffset.y + (ev.clientY - startPointer.y),
@@ -209,12 +223,18 @@ function DragDemo(): React.ReactElement {
       }
     };
 
-    const handleUp = () => endDrag(true);
+    const handleUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      endDrag(true);
+    };
     // pointercancel (browser-initiated, e.g. a gesture takeover) and
     // lostpointercapture (capture released for any other reason without an
     // up/cancel) both mean the drag ended without a real drop: snap back,
     // same as missing the dropzone.
-    const handleCancel = () => endDrag(false);
+    const handleCancel = (ev: PointerEvent) => {
+      if (ev.pointerId !== pointerId) return;
+      endDrag(false);
+    };
 
     chip.addEventListener("pointermove", handleMove);
     chip.addEventListener("pointerup", handleUp);
@@ -227,7 +247,7 @@ function DragDemo(): React.ReactElement {
     <div className="gallery-drag-row">
       <TelekineticFrame id="gal-drag-src" intent="draggable-item">
         <div
-          className={"gallery-chip" + (dragging ? " dragging" : "") + (dropped ? " is-dropped" : "")}
+          className={"gallery-chip" + (dragging ? " dragging" : "") + (dropped ? " dropped" : "")}
           style={offset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
           onPointerDown={handlePointerDown}
         >
@@ -239,7 +259,13 @@ function DragDemo(): React.ReactElement {
       </span>
       <TelekineticFrame id="gal-drag-dest" intent="drop-zone">
         <div ref={dropRef} className={"gallery-dropzone" + (dropped ? " filled" : "")}>
-          {dropped ? "" : "Drop here"}
+          {/* Stays mounted always — only visually hidden via CSS
+              (.filled .gallery-dropzone-label) once dropped — so the
+              dropzone's own content-based box never changes size on drop.
+              Unmounting this text used to collapse the box (its shrink-to-fit
+              width/height both hug content) right as the settle math below
+              measures this same rect. See the .filled rule in styles.css. */}
+          <span className="gallery-dropzone-label">Drop here</span>
         </div>
       </TelekineticFrame>
     </div>

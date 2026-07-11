@@ -349,8 +349,17 @@ body {
   gap: 10px;
   margin-top: 4px;
 }
-.gallery-chip {
+/* TelekineticFrame's own wrapper (`[data-telekinesis-frame]`, a plain block
+   div — see core/react/TelekineticFrame.tsx) sits between `.gallery-drag-row`
+   and `.gallery-chip`/`.gallery-dropzone`, so *it* is the actual flex item
+   here; `flex` only affects a flex container's direct children, so putting
+   it on the boxes nested inside that wrapper (as this used to) was inert —
+   both boxes silently fell back to shrink-to-fit sizing based on their own
+   content instead of splitting the row evenly. */
+.gallery-drag-row > [data-telekinesis-frame] {
   flex: 1;
+}
+.gallery-chip {
   font-weight: 600;
   font-size: 14px;
   text-align: center;
@@ -365,6 +374,10 @@ body {
      track the pointer 1:1, then re-enabled to ease the drop-settle snap. */
   position: relative;
   cursor: grab;
+  /* Pointer Events drive this drag, not native HTML5 drag/touch scrolling —
+     stop the browser from also trying to pan/scroll the page while a touch
+     pointer drags the chip. */
+  touch-action: none;
   transition:
     transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 150ms ease;
@@ -376,7 +389,7 @@ body {
   box-shadow: 0 16px 34px rgba(91, 140, 255, 0.5);
   z-index: 5;
 }
-.gallery-chip.is-dropped {
+.gallery-chip.dropped {
   cursor: default;
 }
 .gallery-drag-arrow {
@@ -384,7 +397,6 @@ body {
   font-size: 18px;
 }
 .gallery-dropzone {
-  flex: 1;
   font-weight: 600;
   font-size: 14px;
   text-align: center;
@@ -402,6 +414,15 @@ body {
 .gallery-dropzone.filled {
   background: rgba(53, 212, 136, 0.14);
   border: 2px solid var(--good);
+}
+/* The "Drop here" label (App.tsx) stays mounted even once filled and is only
+   visually hidden here — unmounting it entirely left the dropzone with no
+   line box, collapsing its own content-based size (~90.66×49 → ~24×32,
+   observed) right as the chip's settle math (endDrag in App.tsx) measures
+   this same rect, so the chip landed centered on a box that no longer
+   existed by the time the frame painted. */
+.gallery-dropzone.filled .gallery-dropzone-label {
+  visibility: hidden;
 }
 
 .gallery-badge-row {
