@@ -49,17 +49,7 @@ export default function GalleryApp(): React.ReactElement {
 
           <section className="gallery-set gallery-drag-card">
             <span className="gallery-set-label">Backlog → Done</span>
-            <div className="gallery-drag-row">
-              <TelekineticFrame id="gal-drag-src" intent="draggable-item">
-                <div className="gallery-chip">Record demo</div>
-              </TelekineticFrame>
-              <span className="gallery-drag-arrow" aria-hidden="true">
-                →
-              </span>
-              <TelekineticFrame id="gal-drag-dest" intent="drop-zone">
-                <div className="gallery-dropzone">Drop here</div>
-              </TelekineticFrame>
-            </div>
+            <DragDemo />
           </section>
         </div>
 
@@ -124,4 +114,115 @@ export default function GalleryApp(): React.ReactElement {
       </footer>
     </div>
   );
+}
+
+/**
+ * The one pair on this page with real behavior instead of static chrome:
+ * `gal-drag-src`'s chip is a plain pointer-driven drag — mousedown, then
+ * window-level mousemove/mouseup while dragging — deliberately *not* HTML5
+ * `draggable`, because Playwright's `Locator.dragTo()` drives a drag purely
+ * by dispatching real mousedown/mousemove/mouseup (see
+ * `packages/engine/src/record.ts`); a native HTML5 drag needs `dragstart`/
+ * `dragover`/`drop`, which that never fires. Everything else in the gallery
+ * is inert chrome the camera performs *around* — this is the one set that
+ * has to actually respond when the recorder really drags it, so the
+ * `drag-and-drop` gallery clip shows the card moving, not just the ghost
+ * cursor.
+ *
+ * On a successful drop the chip is translated (not re-parented) so it sits
+ * centered over the dropzone — simpler and more robust than moving the DOM
+ * node between frames, and the dropzone gets a "filled" style to read as
+ * occupied.
+ */
+function DragDemo(): React.ReactElement {
+  const [offset, setOffset] = React.useState<Point | null>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const [dropped, setDropped] = React.useState(false);
+  const chipRef = React.useRef<HTMLDivElement | null>(null);
+  const dropRef = React.useRef<HTMLDivElement | null>(null);
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>): void {
+    if (dropped) return; // settled — this demo only plays once
+    e.preventDefault();
+    const startPointer: Point = { x: e.clientX, y: e.clientY };
+    const startOffset: Point = offset ?? { x: 0, y: 0 };
+    setDragging(true);
+
+    const handleMove = (ev: MouseEvent) => {
+      setOffset({
+        x: startOffset.x + (ev.clientX - startPointer.x),
+        y: startOffset.y + (ev.clientY - startPointer.y),
+      });
+    };
+
+    const handleUp = () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+      setDragging(false);
+
+      const chipRect = chipRef.current?.getBoundingClientRect();
+      const dropRect = dropRef.current?.getBoundingClientRect();
+      if (chipRect && dropRect && centerInside(chipRect, dropRect)) {
+        // Settle exactly centered over the dropzone, whatever offset got it
+        // there — an additive correction on top of the live drag offset.
+        const chipCenter = rectCenter(chipRect);
+        const dropCenter = rectCenter(dropRect);
+        setOffset((prev) => {
+          const cur = prev ?? { x: 0, y: 0 };
+          return {
+            x: cur.x + (dropCenter.x - chipCenter.x),
+            y: cur.y + (dropCenter.y - chipCenter.y),
+          };
+        });
+        setDropped(true);
+      } else {
+        setOffset(null); // missed the dropzone — snap back home
+      }
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+  }
+
+  return (
+    <div className="gallery-drag-row">
+      <TelekineticFrame id="gal-drag-src" intent="draggable-item">
+        <div
+          ref={chipRef}
+          className={
+            "gallery-chip" +
+            (dragging ? " is-dragging" : "") +
+            (dropped ? " is-dropped" : "")
+          }
+          style={offset ? { transform: `translate(${offset.x}px, ${offset.y}px)` } : undefined}
+          onMouseDown={handleMouseDown}
+        >
+          Record demo
+        </div>
+      </TelekineticFrame>
+      <span className="gallery-drag-arrow" aria-hidden="true">
+        →
+      </span>
+      <TelekineticFrame id="gal-drag-dest" intent="drop-zone">
+        <div ref={dropRef} className={"gallery-dropzone" + (dropped ? " is-filled" : "")}>
+          {dropped ? "" : "Drop here"}
+        </div>
+      </TelekineticFrame>
+    </div>
+  );
+}
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+function rectCenter(r: DOMRect): Point {
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/** Is `inner`'s center point inside `outer`? The standard "did you drop it here" test. */
+function centerInside(inner: DOMRect, outer: DOMRect): boolean {
+  const c = rectCenter(inner);
+  return c.x >= outer.left && c.x <= outer.right && c.y >= outer.top && c.y <= outer.bottom;
 }

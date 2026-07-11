@@ -359,6 +359,25 @@ body {
   color: #fff;
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
   box-shadow: 0 6px 18px rgba(91, 140, 255, 0.3);
+  /* Real pointer-drag target (see gallery/App.tsx's DragDemo) — position:
+     relative only enables z-index while dragging/dropped, it doesn't move
+     the chip; the transition is skipped mid-drag (.is-dragging) so it can
+     track the pointer 1:1, then re-enabled to ease the drop-settle snap. */
+  position: relative;
+  cursor: grab;
+  transition:
+    transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 150ms ease;
+  will-change: transform;
+}
+.gallery-chip.is-dragging {
+  transition: none;
+  cursor: grabbing;
+  box-shadow: 0 16px 34px rgba(91, 140, 255, 0.5);
+  z-index: 5;
+}
+.gallery-chip.is-dropped {
+  cursor: default;
 }
 .gallery-drag-arrow {
   color: var(--muted);
@@ -374,6 +393,15 @@ body {
   color: var(--ink);
   background: rgba(124, 91, 255, 0.1);
   border: 2px dashed var(--accent-2);
+  transition:
+    background 200ms ease,
+    border-color 200ms ease;
+}
+/* Occupied once the chip settles inside it — reuses --good, the same
+   success accent as the badge below, instead of introducing a new color. */
+.gallery-dropzone.is-filled {
+  background: rgba(53, 212, 136, 0.14);
+  border: 2px solid var(--good);
 }
 
 .gallery-badge-row {
