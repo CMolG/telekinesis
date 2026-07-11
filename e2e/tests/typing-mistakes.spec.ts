@@ -104,7 +104,13 @@ test("type-down mistakes:true, self mode: a forced typo still lands the intended
     () => document.querySelector<HTMLInputElement>('[data-telekinesis-id="gal-input"] input')?.value,
   );
   expect(value).toBe(TEXT);
-  expect(marks).toHaveLength(EXPECTED_MARKS);
+  expect(
+    marks,
+    "unexpected mark count — a mismatch here usually means Math.random's forcing queue got " +
+      "contaminated by some other consumer running before the queue install above (see the " +
+      "file-level comment on priming self mode's one-time lazy-init cost), not a real regression " +
+      "in typo planning itself",
+  ).toHaveLength(EXPECTED_MARKS);
 });
 
 test("type-down mistakes:true, external mode: record() plants and corrects the same forced typo", async () => {
@@ -126,6 +132,15 @@ test("type-down mistakes:true, external mode: record() plants and corrects the s
       ],
     };
 
+    // The audio map's marks can't see this: the wrong keystroke and its
+    // correction each fire a mark, but the Backspace between them is
+    // deliberately unmarked (same as self mode — see record.ts's type-down
+    // case), so the mark *count* is identical whether or not the typo is
+    // ever actually corrected. Only reading the field's real, post-timeline
+    // DOM value (via `afterTimeline`, while the page is still alive) can
+    // catch a correction that silently stopped happening.
+    let typedValue: string | null = null;
+
     // recordVideo: false — this spec only needs the audio map, and skipping
     // capture keeps it fast; no ffmpeg involved either way (record() alone
     // never shells out to it, unlike mixAudio/toGif).
@@ -141,10 +156,23 @@ test("type-down mistakes:true, external mode: record() plants and corrects the s
         let i = 0;
         Math.random = () => (i < TYPO_FORCING_SEQUENCE.length ? TYPO_FORCING_SEQUENCE[i++] : 0.99);
       },
+      afterTimeline: async (page) => {
+        typedValue = await page.locator('[data-telekinesis-id="gal-input"] input').inputValue();
+      },
     });
 
-    expect(res.audioMap.marks).toHaveLength(EXPECTED_MARKS);
+    expect(
+      res.audioMap.marks,
+      "unexpected mark count — a mismatch here usually means Math.random's forcing queue got " +
+        "contaminated by some other consumer running before onStep installs it (see the " +
+        "file-level comment above on record()'s setup burning thousands of calls), not a real " +
+        "regression in typo planning itself",
+    ).toHaveLength(EXPECTED_MARKS);
     expect(res.audioMap.marks.every((m) => m.profile === "mechanical-keyboard")).toBe(true);
+    // The real regression this guards: marks alone can't tell a corrected
+    // typo apart from an uncorrected one (see the comment on `typedValue`
+    // above) — only the field's actual value can.
+    expect(typedValue).toBe(TEXT);
   } finally {
     Math.random = originalRandom;
     await rm(outDir, { recursive: true, force: true }).catch(() => {});

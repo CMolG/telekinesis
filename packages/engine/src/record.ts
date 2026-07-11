@@ -33,6 +33,22 @@ export interface RecordOptions {
   /** How long to wait for `window.__telekinesis` to be ready (ms). */
   runtimeTimeout?: number;
   onStep?: (index: number, total: number, effect: Effect) => void;
+  /**
+   * Invoked with the live `Page` once the timeline has finished driving it,
+   * after `durationMs` is captured but before the recording context (and
+   * therefore the page) closes. Purely for post-run inspection/assertions —
+   * e.g. reading a field's real DOM value — never for further recorded
+   * interaction: by the time this runs, every mark in the returned
+   * `audioMap` has already been collected and the video is already fully
+   * choreographed, so nothing the hook does can retroactively change what
+   * was recorded (it can, if capturing video, add a few extra static frames
+   * to the tail while it runs). Additive/optional — existing callers are
+   * unaffected. Used by the e2e suite to catch "the video looks fine but the
+   * underlying state is wrong" regressions Playwright's own recording can't
+   * otherwise see (e.g. a typo'd character that was never actually
+   * corrected).
+   */
+  afterTimeline?: (page: Page) => void | Promise<void>;
 }
 
 export interface RecordResult {
@@ -101,6 +117,13 @@ export async function record(
     }
 
     const durationMs = Date.now() - start;
+
+    // The timeline is done and every mark above is already collected, but
+    // the page/context are still alive — give the caller a chance to inspect
+    // final in-page state before everything is torn down. See the doc
+    // comment on `RecordOptions.afterTimeline`.
+    await opts.afterTimeline?.(page);
+
     const video = captureVideo ? page.video() : null;
     await context.close(); // flushes the video file
     const videoPath = video ? await video.path() : "";
