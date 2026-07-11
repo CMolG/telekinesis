@@ -33,8 +33,12 @@ export interface PlanTypingOptions {
    * never planned for the very first character typed into a truly empty
    * field (there's nothing to have "just mistyped" yet) — but it *can* be
    * planned on the first character of this pass when the target was already
-   * non-empty. Defaults to `false` (fresh target) — true for every current
-   * call site, which always types into an empty field.
+   * non-empty. Defaults to `false` (fresh target). No call site hardcodes
+   * `true`: each computes it live from its own notion of "current value" —
+   * `@telekinesis/core`'s `typeInto` (effects.ts) derives it from its
+   * in-memory buffer (`current.length > 0`), and `@telekinesis/engine`'s
+   * `record.ts` derives it from the field's live value, read through
+   * Playwright right before planning.
    */
   startNonEmpty?: boolean;
   /** Source of randomness. Defaults to `Math.random`; inject for deterministic tests. */

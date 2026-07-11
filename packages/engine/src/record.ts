@@ -142,10 +142,20 @@ async function runEffectOnPage(
       await field.click({ force: true });
       // `planTyping` is the same pure decision function self-mode `typeInto`
       // (core/effects.ts) uses, so a recorded typo has identical shape/odds
-      // to a live-preview one. With `mistakes` false (the default) this
-      // returns one plain step per character and the loop below reduces to
-      // exactly the previous behavior.
-      const steps = planTyping(eff.text, eff.mistakes);
+      // to a live-preview one — including `startNonEmpty`: effects.ts derives
+      // it from its own buffer (`current.length > 0`), so this reads the
+      // field's *live* value the same way instead of always assuming a fresh
+      // field (a recording onto a pre-filled field must get the same typo
+      // eligibility a live preview would). Mirrors effects.ts's `read`:
+      // `inputValue()` for input/textarea/select, falling back to
+      // `textContent()` for a contenteditable (where `inputValue()` throws).
+      // With `mistakes` false (the default) this returns one plain step per
+      // character and the loop below reduces to exactly the previous
+      // behavior.
+      const currentText = (await field.inputValue().catch(() => field.textContent())) ?? "";
+      const steps = planTyping(eff.text, eff.mistakes, {
+        startNonEmpty: currentText.length > 0,
+      });
       for (const step of steps) {
         if (step.typo) {
           // Real wrong keystroke, a beat, a real Backspace, another beat —
@@ -154,15 +164,14 @@ async function runEffectOnPage(
           // synthetic DOM write. The backspace itself stays unmarked, same
           // as self mode: only the wrong keystroke and the eventual correct
           // one make a sound.
-          mark(eff.soundProfile);
-          await field.pressSequentially(step.typo, { delay: 0 });
-          await page.waitForTimeout(eff.typingSpeed);
-          await field.press("Backspace");
-          await page.waitForTimeout(eff.typingSpeed);
+          await pressAndWait(page, field, step.typo, eff.typingSpeed, {
+            mark: () => mark(eff.soundProfile),
+          });
+          await pressAndWait(page, field, "Backspace", eff.typingSpeed, { named: true });
         }
-        mark(eff.soundProfile);
-        await field.pressSequentially(step.char, { delay: 0 });
-        await page.waitForTimeout(eff.typingSpeed);
+        await pressAndWait(page, field, step.char, eff.typingSpeed, {
+          mark: () => mark(eff.soundProfile),
+        });
       }
       return;
     }
@@ -203,6 +212,30 @@ function runVisual(page: Page, eff: Effect): Promise<void> {
         .__telekinesis.runEffect(e),
     eff,
   );
+}
+
+/**
+ * One keystroke of the type-down loop above: optionally record a sound mark,
+ * send the key, then hold for the typing cadence. `opts.named` sends a named
+ * key (e.g. `"Backspace"`) through `press`; otherwise `key` is typed through
+ * `pressSequentially`, same as an ordinary character. Extracted because this
+ * press/mark/wait idiom otherwise repeats three times per typo'd step (wrong
+ * char, backspace, correct char) and once per plain step.
+ */
+async function pressAndWait(
+  page: Page,
+  field: Locator,
+  key: string,
+  waitMs: number,
+  opts: { named?: boolean; mark?: () => void } = {},
+): Promise<void> {
+  opts.mark?.();
+  if (opts.named) {
+    await field.press(key);
+  } else {
+    await field.pressSequentially(key, { delay: 0 });
+  }
+  await page.waitForTimeout(waitMs);
 }
 
 /* ------------------------------------------------------------------ *
