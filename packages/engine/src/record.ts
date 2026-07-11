@@ -4,6 +4,7 @@ import {
   parseTimesheet,
   planTyping,
   SOUND_PROFILES,
+  type DragAndDropEffect,
   type Effect,
   type SoundProfile,
 } from "@telekinesis/schema";
@@ -200,19 +201,49 @@ async function runEffectOnPage(
     }
 
     case "drag-and-drop": {
-      await runVisual(page, eff); // cursor travels the path
-      const source = frameLocator(page, eff.frameId);
-      if (eff.destFrameId) {
-        await source.dragTo(frameLocator(page, eff.destFrameId), { force: true });
-      } else if (typeof eff.destX === "number" && typeof eff.destY === "number") {
-        const box = await source.boundingBox();
-        if (box) {
-          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-          await page.mouse.down();
-          await page.mouse.move(eff.destX, eff.destY, { steps: 12 });
-          await page.mouse.up();
-        }
+      // Synchronized carry, in two phases — see `dragApproach`/`dragGlide`
+      // in `@telekinesis/core`'s effects.ts and the two runtime methods they
+      // back. Phase 1 (the ghost cursor's short approach to the source,
+      // ~200ms) is awaited on its own so the cursor visibly arrives before
+      // anything else happens. Phase 2 (the longer src→dest glide) is then
+      // *fired* — not awaited — and raced against a real, stepped Playwright
+      // drag paced to the same `eff.duration`. The gallery's DragDemo chip
+      // is a Pointer Events target with `setPointerCapture`
+      // (playground/src/gallery/App.tsx), so it rides along with whatever
+      // real pointer is down on it — on film, the chip travels *with* the
+      // ghost cursor instead of teleporting into place after it.
+      //
+      // The previous choreography awaited the *whole* two-leg visual first
+      // and only then performed the real drag as a single near-instant
+      // `dragTo` snap: cursor glides, a beat of dead air, the dragged
+      // element teleports. This keeps the two in lockstep the entire trip.
+      const from = await awaitGhostApproach(page, eff);
+      const to = await resolveDragDest(page, eff);
+      if (!to) {
+        // The schema's cross-field refinement (timesheet.ts's superRefine)
+        // guarantees a destination at parse time, so this is unreachable for
+        // any timesheet that made it through `parseTimesheet` — kept only so
+        // a malformed effect fails soft instead of throwing mid-recording.
+        mark(eff.soundProfile);
+        return;
       }
+
+      const glideDone = fireGhostGlide(page, eff, from); // not awaited yet
+
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      const stepDelay = eff.duration / DRAG_STEPS;
+      for (let i = 1; i <= DRAG_STEPS; i++) {
+        const t = easeOutQuad(i / DRAG_STEPS);
+        await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+        await page.waitForTimeout(stepDelay);
+      }
+      await page.mouse.up();
+
+      // The ghost cursor's own overshoot+settle spring (GhostCursor.moveTo)
+      // can run a little past `eff.duration` — wait for it so the next
+      // effect never starts while phase 2's visual is still resolving.
+      await glideDone;
       mark(eff.soundProfile);
       return;
     }
@@ -235,6 +266,89 @@ function runVisual(page: Page, eff: Effect): Promise<void> {
         .__telekinesis.runEffect(e),
     eff,
   );
+}
+
+/* ------------------------------------------------------------------ *
+ * drag-and-drop's synchronized carry — see the case above.
+ * ------------------------------------------------------------------ */
+
+/** Real-pointer samples across the destination carry. Within the ~20-25
+ * range a stepped drag needs to read as continuous motion once paced out
+ * over `eff.duration` (rather than a handful of choppy jumps), without
+ * spending a CDP round trip per GIF frame. */
+const DRAG_STEPS = 22;
+
+/**
+ * Ease-out quad — fast start, gentle arrival into the drop target. Roughly
+ * matches the ghost cursor's own default deceleration-into-target feel
+ * (`fittsEase` in `@telekinesis/core`'s cursor.ts) without pulling that
+ * browser-only math into this Node-side recorder for the sake of one curve.
+ */
+function easeOutQuad(t: number): number {
+  return 1 - (1 - t) * (1 - t);
+}
+
+/** Await phase 1 of a drag-and-drop's visual (the ghost cursor's approach to
+ * the source) via the runtime, and hand back the exact source point it
+ * resolved — see `@telekinesis/core`'s `dragApproach`. */
+function awaitGhostApproach(
+  page: Page,
+  eff: DragAndDropEffect,
+): Promise<{ x: number; y: number }> {
+  return page.evaluate(
+    (e) =>
+      (
+        window as unknown as {
+          __telekinesis: { runDragApproach(effect: unknown): Promise<{ x: number; y: number }> };
+        }
+      ).__telekinesis.runDragApproach(e),
+    eff,
+  );
+}
+
+/** Fire phase 2 of a drag-and-drop's visual (the ghost cursor's src→dest
+ * glide) via the runtime — see `@telekinesis/core`'s `dragGlide`.
+ * Deliberately returns the in-flight promise rather than awaiting it: the
+ * "drag-and-drop" case above races this against a real, stepped drag so the
+ * dragged element rides along with the ghost cursor instead of teleporting
+ * once the visual is already done. */
+function fireGhostGlide(
+  page: Page,
+  eff: DragAndDropEffect,
+  from: { x: number; y: number },
+): Promise<void> {
+  return page.evaluate(
+    ({ effect, from: f }) =>
+      (
+        window as unknown as {
+          __telekinesis: {
+            runDragGlide(effect: unknown, from: { x: number; y: number }): Promise<void>;
+          };
+        }
+      ).__telekinesis.runDragGlide(effect, f),
+    { effect: eff, from },
+  );
+}
+
+/**
+ * A drag-and-drop's landing point in Playwright's (viewport CSS px) mouse
+ * coordinates — mirrors `destPoint` in `@telekinesis/core`'s effects.ts,
+ * Node-side, since this file drives the real pointer independently of the
+ * in-page runtime. `null` only for a malformed effect the schema should
+ * already have rejected at parse time (see the case above).
+ */
+async function resolveDragDest(
+  page: Page,
+  eff: DragAndDropEffect,
+): Promise<{ x: number; y: number } | null> {
+  if (eff.destFrameId) {
+    const box = await frameLocator(page, eff.destFrameId).boundingBox();
+    return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+  }
+  if (typeof eff.destX === "number" && typeof eff.destY === "number") {
+    return { x: eff.destX, y: eff.destY };
+  }
+  return null;
 }
 
 /**

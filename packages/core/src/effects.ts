@@ -1,4 +1,4 @@
-import { planTyping, type Effect, type SoundProfile } from "@telekinesis/schema";
+import { planTyping, type DragAndDropEffect, type Effect, type SoundProfile } from "@telekinesis/schema";
 import type { GhostCursor } from "./cursor";
 import { cssEasing, jsEasing } from "./easing";
 import { rectCenter, viewportAnchor, type Point } from "./geometry";
@@ -68,18 +68,8 @@ export async function runEffect(effect: Effect, ctx: RunContext): Promise<void> 
     }
 
     case "drag-and-drop": {
-      const fromEl = getFrameElement(effect.frameId);
-      const fromRect = fromEl?.getBoundingClientRect();
-      const from = fromRect ? rectCenter(fromRect) : cursor.pos;
-      const to = destPoint(effect) ?? from;
-      await cursor.moveTo(from, { duration: 200, easing: "ease-out", signal });
-      await cursor.pressPulse(signal);
-      if (ctx.mode === "self" && fromEl) {
-        fromEl.style.transition = `transform ${effect.duration}ms ${cssEasing[effect.easing]}`;
-        fromEl.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
-      }
-      await cursor.moveTo(to, { duration: effect.duration, easing: effect.easing, signal });
-      if (effect.soundProfile) ctx.mark(effect.soundProfile);
+      const from = await dragApproach(effect, ctx);
+      await dragGlide(effect, from, ctx);
       return;
     }
 
@@ -159,6 +149,68 @@ export function destPoint(e: {
     return { x: e.destX, y: e.destY };
   }
   return null;
+}
+
+/**
+ * Where a `drag-and-drop`'s ghost cursor starts: the source frame's live
+ * center, or the cursor's current position if the frame can't be found (same
+ * graceful-miss fallback every other effect uses).
+ */
+function dragSourcePoint(effect: DragAndDropEffect, cursor: GhostCursor): Point {
+  const fromEl = getFrameElement(effect.frameId);
+  const fromRect = fromEl?.getBoundingClientRect();
+  return fromRect ? rectCenter(fromRect) : cursor.pos;
+}
+
+/**
+ * `drag-and-drop`'s visual, phase 1 ("pick up"): the ghost cursor travels to
+ * the source and does a brief press-pulse. Resolves with the source point so
+ * a caller that needs it (phase 2, `dragGlide`, below) doesn't have to
+ * re-measure a possibly-stale rect.
+ *
+ * Split out from phase 2 so a recording (`packages/engine/src/record.ts`)
+ * can await this short leg alone, then start the real pointer drag *and*
+ * fire phase 2 at the same time — instead of the previous choreography,
+ * which awaited the *whole* two-leg visual (source approach + destination
+ * glide) before ever touching the real pointer, leaving the dragged element
+ * to snap into place well after the ghost cursor had already finished
+ * traveling. `runEffect`'s own "drag-and-drop" case below still runs both
+ * legs back-to-back for every other caller (self-mode live preview, Studio
+ * playback, or a bare external `runEffect` call like `effects.spec.ts`
+ * makes) — this split doesn't change their behavior at all.
+ */
+export async function dragApproach(effect: DragAndDropEffect, ctx: RunContext): Promise<Point> {
+  const from = dragSourcePoint(effect, ctx.cursor);
+  await ctx.cursor.moveTo(from, { duration: 200, easing: "ease-out", signal: ctx.signal });
+  await ctx.cursor.pressPulse(ctx.signal);
+  return from;
+}
+
+/**
+ * `drag-and-drop`'s visual, phase 2 ("carry"): the ghost cursor glides from
+ * `from` (phase 1's resolved source point) to the destination over
+ * `effect.duration`. In self mode this is also what moves the dragged
+ * element itself — a CSS transform, since nothing else is driving real
+ * input; in external mode the caller is expected to be performing the real
+ * drag concurrently with this call (see `dragApproach`'s doc comment above),
+ * so only the cursor is driven here.
+ */
+export async function dragGlide(
+  effect: DragAndDropEffect,
+  from: Point,
+  ctx: RunContext,
+): Promise<void> {
+  const { cursor, signal } = ctx;
+  const to = destPoint(effect) ?? from;
+  if (ctx.mode === "self") {
+    const fromEl = getFrameElement(effect.frameId);
+    if (fromEl) {
+      fromEl.style.transition = `transform ${effect.duration}ms ${cssEasing[effect.easing]}`;
+      fromEl.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
+    }
+  }
+  await cursor.moveTo(to, { duration: effect.duration, easing: effect.easing, signal });
+  if (effect.soundProfile) ctx.mark(effect.soundProfile);
 }
 
 /**
