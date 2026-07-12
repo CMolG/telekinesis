@@ -130,8 +130,12 @@ export function fittsEase(t: number, exaggeration = 3.2): number {
  * ever calling this, since a spring isn't a fixed-duration progress curve.
  * `jsEasing.spring` (a cubic-bezier-shaped fixed-duration approximation)
  * exists only as that same effect's CSS transition fallback — passing
- * `"spring"` here returns it too, but no current caller does; both of the
- * callers above special-case `"spring"` ahead of this function instead.
+ * `"spring"` here returns that approximation. `GhostCursor.moveTo` never
+ * does (it branches to `flySpring` first), but the engine recorder's real
+ * drag pointer does NOT yet mirror that branch: a drag authored with
+ * `easing: "spring"` runs the approximation on the real pointer while the
+ * ghost runs true spring physics — a known, dormant desync (no shipped
+ * timesheet uses it) tracked for the easing work in Plan 1.
  */
 export function curveForEasing(easing: EasingPattern | undefined): (t: number) => number {
   if (easing === undefined || easing === "ease-in-out") return fittsEase;
