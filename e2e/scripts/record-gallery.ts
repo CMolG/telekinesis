@@ -17,11 +17,14 @@
  *   TK_GALLERY_FPS    output GIF frame rate for every job, overriding
  *                     JOB_OVERRIDES too (default 12, the docs precedent —
  *                     see JOB_OVERRIDES below for per-job floors)
- *   TK_GALLERY_WIDTH  output GIF width in px, height keeps aspect (default 480 — see note below)
+ *   TK_GALLERY_WIDTH  output GIF width in px for every job, height keeps
+ *                     aspect, overriding JOB_OVERRIDES too — same
+ *                     precedence as TK_GALLERY_FPS (default 480, see
+ *                     JOB_OVERRIDES below for per-job floors)
  *   TK_GALLERY_ONLY   record a single job by name (an action, or "hero") — cheap iteration
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +37,12 @@ import { toGif } from "@telekinesis/render";
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 const galleryDir = path.join(repoRoot, "examples", "gallery");
 const outDir = path.join(repoRoot, "public", "gallery");
+// Every job's GIF is encoded here first, budget-checked, and only *then*
+// renamed into outDir — see the per-job loop in main() below. Nested inside
+// outDir (not the OS tmpdir) so the final rename is same-filesystem, never
+// a cross-device EXDEV; excluded from the total-budget scan below because
+// readdir(outDir) is non-recursive and never descends into it.
+const tmpOutDir = path.join(outDir, ".tmp");
 
 const PORT = 4173;
 const BASE = `http://localhost:${PORT}`;
@@ -41,26 +50,37 @@ const BASE = `http://localhost:${PORT}`;
 const DEFAULT_FPS = 12;
 // The docs precedent (apps/docs/scripts/record-sections.ts) uses width 560,
 // which is fine for clips where most of the frame holds still (cursor moves,
-// clicks, highlights). zoom-in/zoom-out rescale the *entire* viewport every
-// frame — GIF's LZW/palette compression has nothing static to exploit — and
-// at width 560 they measured 1036KB/~950KB, over the 900KB per-file budget.
-// Dropping fps 12 -> 10 alone wasn't enough (zoom-in still measured 922KB at
-// width 560); width 480 was, with real margin (zoom-in 799KB, zoom-out
-// 764KB) and without going below the fps10/width480 floor. Applied globally
-// for a consistent gallery instead of a one-off per effect.
-const WIDTH = Number(process.env.TK_GALLERY_WIDTH ?? 480);
+// clicks, highlights). 480 gives every other gallery clip comfortable budget
+// margin at the global fps/width defaults. zoom-in/zoom-out don't reliably
+// fit even at 480 — see their own JOB_OVERRIDES entry below for the measured
+// numbers and why they get a narrower, slower override instead of lowering
+// the default for every other clip.
+const DEFAULT_WIDTH = 480;
 const ONLY = process.env.TK_GALLERY_ONLY;
 
 /**
- * Per-job fps floors for jobs that don't fit `DEFAULT_FPS` even at
- * `WIDTH` 480. `hero` (the landing tour — longer and busier than a
- * single-effect gallery clip) measured ~905-908KB at the global fps 12
- * default, just over the 900KB per-GIF budget, vs. ~810KB at fps 10 — so it
- * gets its own floor here instead of lowering fps for every other clip.
- * Resolved by `resolveFps` below, applied where fps flows into `toGif`.
+ * Per-job fps/width floors for jobs that don't fit the global defaults.
+ * Resolved by `resolveFps`/`resolveWidth` below, applied where fps/width
+ * flow into `toGif`.
+ *
+ * - `hero` (the landing tour — longer and busier than a single-effect
+ *   gallery clip) measured ~905-908KB at the global fps 12 default, just
+ *   over the 900KB per-GIF budget, vs. ~810KB at fps 10 — so it gets its own
+ *   fps floor instead of lowering fps for every other clip.
+ * - `zoom-in`/`zoom-out` rescale the *entire* viewport every frame — GIF's
+ *   LZW/palette compression has nothing static to exploit. At the global
+ *   fps12/width480 defaults they regenerate at 1017-1061KB, over the 900KB
+ *   budget (encode is non-deterministic run to run — the previously-
+ *   committed bytes for these two, 816KB/766KB, happened to land under
+ *   budget at those same settings, within the ~±25-30% run-to-run variance
+ *   this encoder shows, not because fps12/width480 reliably fits them).
+ *   fps10+width440 measured 602KB — a 33% margin, comfortably absorbing
+ *   that variance instead of gambling on it every re-record.
  */
-const JOB_OVERRIDES: Record<string, { fps?: number }> = {
+const JOB_OVERRIDES: Record<string, { fps?: number; width?: number }> = {
   hero: { fps: 10 },
+  "zoom-in": { fps: 10, width: 440 },
+  "zoom-out": { fps: 10, width: 440 },
 };
 
 /**
@@ -71,6 +91,12 @@ const JOB_OVERRIDES: Record<string, { fps?: number }> = {
 function resolveFps(jobName: string): number {
   if (process.env.TK_GALLERY_FPS) return Number(process.env.TK_GALLERY_FPS);
   return JOB_OVERRIDES[jobName]?.fps ?? DEFAULT_FPS;
+}
+
+/** width for one job — same precedence as `resolveFps` above (env > override > default). */
+function resolveWidth(jobName: string): number {
+  if (process.env.TK_GALLERY_WIDTH) return Number(process.env.TK_GALLERY_WIDTH);
+  return JOB_OVERRIDES[jobName]?.width ?? DEFAULT_WIDTH;
 }
 
 // Hard budget (plan's "Reglas duras" #2): the script fails loudly rather
@@ -139,6 +165,12 @@ async function buildJobs(): Promise<Job[]> {
 
 async function main(): Promise<void> {
   await mkdir(outDir, { recursive: true });
+  // Wipe and recreate the tmp encode dir up front — clears any stale
+  // `.gif` a prior invocation left behind after a hard crash (anything
+  // short of that is already cleaned up per-job below), so a leftover temp
+  // file can never be mistaken for this run's output.
+  await rm(tmpOutDir, { recursive: true, force: true });
+  await mkdir(tmpOutDir, { recursive: true });
 
   const allJobs = await buildJobs();
   const jobs = ONLY ? allJobs.filter((j) => j.name === ONLY) : allJobs;
@@ -179,25 +211,35 @@ async function main(): Promise<void> {
           `  ✔ recorded (${result.durationMs}ms wall, ${result.audioMap.marks.length} sound marks)`,
         );
 
+        // Encoded to a tmp path first, budget-checked, and only *then*
+        // renamed onto the tracked `public/gallery/<name>.gif` — a run that
+        // busts budget below must never leave that tracked path dirty with
+        // an oversized GIF (reproduced twice before this fix: the previous
+        // order wrote straight to gifOut, so a failed run's oversized bytes
+        // just sat there, tracked, until someone noticed).
         const gifOut = path.join(outDir, `${job.name}.gif`);
+        const gifTmp = path.join(tmpOutDir, `${job.name}.gif`);
         const gif = await toGif(result.videoPath, {
-          output: gifOut,
+          output: gifTmp,
           fps: resolveFps(job.name),
-          width: WIDTH,
+          width: resolveWidth(job.name),
           maxColors: 96,
           lossy: 80,
           onLog: (m) => process.stdout.write(`    ${m}\n`),
         });
 
-        const { size } = await stat(gifOut);
+        const { size } = await stat(gifTmp);
         if (size > PER_GIF_BUDGET_BYTES) {
-          // Thrown (not process.exit'd) so the finally blocks below still
-          // run — killing any preview server this invocation started and
-          // cleaning up the temp work dir — before main()'s catch exits 1.
+          // Delete the oversized tmp output — it must never reach gifOut —
+          // then throw (not process.exit, so the finally blocks below still
+          // run: killing any preview server this invocation started and
+          // cleaning up the temp work dir — before main()'s catch exits 1).
+          await rm(gifTmp, { force: true });
           throw new Error(
-            `${job.name}.gif pesa ${Math.round(size / 1024)}KB — recorta el timesheet o baja width/fps`,
+            `${job.name}.gif weighs ${Math.round(size / 1024)}KB — trim the timesheet or lower width/fps`,
           );
         }
+        await rename(gifTmp, gifOut);
 
         const backend = gif.backend + (gif.optimized ? "+gifsicle" : "");
         const ms = Date.now() - jobStart;
@@ -209,6 +251,19 @@ async function main(): Promise<void> {
         await rm(work, { recursive: true, force: true });
       }
     }
+  } catch (err) {
+    // A mid-batch failure (e.g. one job's GIF busts the per-file budget)
+    // would otherwise jump straight to main().catch below, hiding how far
+    // the run actually got — print what finished first so a failed
+    // `pnpm gallery:record` still reports every completed job's size, not
+    // just which one broke.
+    if (rows.length > 0) {
+      console.log("\n● gallery summary (jobs completed before the failure)");
+      console.table(
+        rows.map((r) => ({ name: r.name, KB: Math.round(r.bytes / 1024), backend: r.backend, ms: r.ms })),
+      );
+    }
+    throw err;
   } finally {
     server?.kill();
   }
@@ -233,7 +288,7 @@ async function main(): Promise<void> {
   if (totalBytes > TOTAL_BUDGET_BYTES) {
     throw new Error(
       `public/gallery totals ${(totalBytes / 1_000_000).toFixed(2)}MB across ${allGifFiles.length} GIFs — ` +
-        `over the ${(TOTAL_BUDGET_BYTES / 1_000_000).toFixed(0)}MB budget; recorta timesheets o baja width/fps`,
+        `over the ${(TOTAL_BUDGET_BYTES / 1_000_000).toFixed(0)}MB budget; trim timesheets or lower width/fps`,
     );
   }
 
