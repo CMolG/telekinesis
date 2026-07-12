@@ -10,7 +10,7 @@
   "fps": 30,
   "timeline": [
     { "action": "wait", "duration": 350 },
-    { "action": "scroll-down", "distance": 970, "duration": 600, "delayAfter": 150 },
+    { "action": "scroll-down", "distance": 970, "duration": 900, "delayAfter": 150 },
     { "action": "highlight", "frameId": "waitlist-email", "duration": 400, "padding": 8, "delayAfter": 120 },
     { "action": "cursor-move", "destFrameId": "waitlist-email", "duration": 350 },
     { "action": "click", "frameId": "waitlist-email", "showRipple": false, "delayAfter": 100 },
