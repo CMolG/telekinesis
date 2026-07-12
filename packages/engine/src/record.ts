@@ -229,6 +229,16 @@ async function runEffectOnPage(
       }
 
       const glideDone = fireGhostGlide(page, eff, from); // not awaited yet
+      // Attach a no-op handler on this separate chain right away so a
+      // rejection landing before the `await glideDone` below (e.g. the page
+      // context tearing down mid-drag) is marked handled instead of
+      // surfacing as an unhandled rejection and hard-killing the whole
+      // Node process — which would skip every `finally` (browser.close(),
+      // record-gallery.ts's per-job temp-dir cleanup) and take out the rest
+      // of a multi-GIF batch over one flaky drag. `await glideDone` below
+      // still observes and rethrows the same rejection through its own
+      // chain — this only pre-empts the crash.
+      glideDone.catch(() => {});
 
       await page.mouse.move(from.x, from.y);
       await page.mouse.down();

@@ -68,6 +68,13 @@ export async function runEffect(effect: Effect, ctx: RunContext): Promise<void> 
     }
 
     case "drag-and-drop": {
+      // dragApproach/dragGlide are exported as two separate phases (see
+      // their doc comments below) solely so external-mode recording
+      // (packages/engine/src/record.ts) can fire the destination glide
+      // concurrently with a real, stepped Playwright drag instead of after
+      // it. Every other caller — self mode, here, plus Studio playback and
+      // a bare external `runEffect` call — just awaits them back-to-back,
+      // which is exactly the pre-split, sequential behavior.
       const from = await dragApproach(effect, ctx);
       await dragGlide(effect, from, ctx);
       return;
