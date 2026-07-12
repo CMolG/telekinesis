@@ -14,7 +14,9 @@
  *   pnpm --filter @telekinesis/e2e gallery:record   # skips the build — dist/ must already exist
  *
  * Env:
- *   TK_GALLERY_FPS    output GIF frame rate (default 12, the docs precedent)
+ *   TK_GALLERY_FPS    output GIF frame rate for every job, overriding
+ *                     JOB_OVERRIDES too (default 12, the docs precedent —
+ *                     see JOB_OVERRIDES below for per-job floors)
  *   TK_GALLERY_WIDTH  output GIF width in px, height keeps aspect (default 480 — see note below)
  *   TK_GALLERY_ONLY   record a single job by name (an action, or "hero") — cheap iteration
  */
@@ -36,7 +38,7 @@ const outDir = path.join(repoRoot, "public", "gallery");
 const PORT = 4173;
 const BASE = `http://localhost:${PORT}`;
 
-const FPS = Number(process.env.TK_GALLERY_FPS ?? 12);
+const DEFAULT_FPS = 12;
 // The docs precedent (apps/docs/scripts/record-sections.ts) uses width 560,
 // which is fine for clips where most of the frame holds still (cursor moves,
 // clicks, highlights). zoom-in/zoom-out rescale the *entire* viewport every
@@ -48,6 +50,28 @@ const FPS = Number(process.env.TK_GALLERY_FPS ?? 12);
 // for a consistent gallery instead of a one-off per effect.
 const WIDTH = Number(process.env.TK_GALLERY_WIDTH ?? 480);
 const ONLY = process.env.TK_GALLERY_ONLY;
+
+/**
+ * Per-job fps floors for jobs that don't fit `DEFAULT_FPS` even at
+ * `WIDTH` 480. `hero` (the landing tour — longer and busier than a
+ * single-effect gallery clip) measured ~905-908KB at the global fps 12
+ * default, just over the 900KB per-GIF budget, vs. ~810KB at fps 10 — so it
+ * gets its own floor here instead of lowering fps for every other clip.
+ * Resolved by `resolveFps` below, applied where fps flows into `toGif`.
+ */
+const JOB_OVERRIDES: Record<string, { fps?: number }> = {
+  hero: { fps: 10 },
+};
+
+/**
+ * fps for one job, precedence high to low: env `TK_GALLERY_FPS` (if set,
+ * wins outright for every job, `JOB_OVERRIDES` included) > that job's entry
+ * in `JOB_OVERRIDES` > `DEFAULT_FPS`.
+ */
+function resolveFps(jobName: string): number {
+  if (process.env.TK_GALLERY_FPS) return Number(process.env.TK_GALLERY_FPS);
+  return JOB_OVERRIDES[jobName]?.fps ?? DEFAULT_FPS;
+}
 
 // Hard budget (plan's "Reglas duras" #2): the script fails loudly rather
 // than silently shipping an oversized gallery. 900_000 / 10_000_000 are
@@ -158,7 +182,7 @@ async function main(): Promise<void> {
         const gifOut = path.join(outDir, `${job.name}.gif`);
         const gif = await toGif(result.videoPath, {
           output: gifOut,
-          fps: FPS,
+          fps: resolveFps(job.name),
           width: WIDTH,
           maxColors: 96,
           lossy: 80,
