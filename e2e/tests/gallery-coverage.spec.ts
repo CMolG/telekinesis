@@ -18,7 +18,8 @@ import { EFFECT_ACTIONS, parseTimesheet } from "@telekinesis/schema";
 // only so it's gated alongside (and reported with) the rest of the e2e suite instead of
 // living behind a separate runner.
 
-const GALLERY_GIF_BUDGET_BYTES = 900_000; // plan rule 2: ≤900KB per gallery GIF.
+// Plan rule 2's per-GIF budget — asserted strictly (< 900_000 bytes, toBeLessThan below).
+const GALLERY_GIF_BUDGET_BYTES = 900_000;
 
 // fileURLToPath (not raw `.pathname`) so this survives a repo path with spaces or other
 // characters a file:// URL would percent-encode — matches examples.spec.ts's convention.
@@ -64,13 +65,18 @@ for (const action of EFFECT_ACTIONS) {
 // hero isn't one of the 11 EFFECT_ACTIONS — examples/gallery/hero.timesheet.json records
 // the whole playground landing page (via landing.html?demo), not one effect in isolation —
 // but the plan's Definition of Done still counts it as a committed, budgeted asset ("12
-// GIFs (11 effects + hero)"), so it gets its own size guard here rather than silently
-// riding along unbudgeted.
-test("hero.gif is committed and stays within the gallery GIF budget", () => {
+// GIFs (11 effects + hero)"), and the README opens with it (Task 8's hero <img> under the
+// header block). So it gets the same guards as the per-action GIFs above: the budget, and
+// the README embed — without the latter, stripping the hero <img> from the README would
+// slip through as the one unguarded GIF of the twelve.
+test("hero.gif is committed, within the gallery GIF budget, and embedded in the README", () => {
   expect(
     statSync(`${galleryGifsDir}/hero.gif`).size,
     `hero.gif exceeds the ${GALLERY_GIF_BUDGET_BYTES}-byte budget (plan rule 2)`,
   ).toBeLessThan(GALLERY_GIF_BUDGET_BYTES);
+  expect(readme, "README never references public/gallery/hero.gif").toContain(
+    "public/gallery/hero.gif",
+  );
 });
 
 // The mirror image of the orphan-GIF test below: a leftover or renamed
