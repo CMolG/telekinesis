@@ -1,5 +1,5 @@
 import type { CursorCurve, EasingPattern } from "@telekinesis/schema";
-import { jsEasing } from "./easing";
+import { curveForEasing } from "@telekinesis/schema";
 import { arcControlPoint, dist, pointAlong, quadBezier, type Point } from "./geometry";
 import { getLayer } from "./layer";
 import { animate, animateSprings, Spring, sleep, type SpringParams } from "./timing";
@@ -34,29 +34,19 @@ const TRAIL_GHOSTS = 3;
 const TRAIL_STRIDE = 3;
 
 /**
- * Fitts-law-inspired velocity profile: a fast launch (steep initial slope)
- * and a long deceleration into the target, the way a real hand approaches a
- * small on-screen target — vs. the symmetric, mechanical feel of a plain
- * ease-in-out. This is `GhostCursor`'s own default progress curve, used
- * whenever the caller doesn't ask for a specific named easing (in practice:
- * whenever an effect leaves `easing` at its schema default of
- * `"ease-in-out"`, since "make it look human" was always the intent of that
- * default). Callers that explicitly want `linear`, `ease-in`, one of the
- * named curves, etc. still get exactly that curve, unchanged.
- *
- * Monotonic and exact at the endpoints for any `exaggeration >= 1`:
- * `f(0) = 0`, `f(1) = 1`, `f'(t) = exaggeration·(1-t)^(exaggeration-1) ≥ 0`.
- * See `test/cursor-motion.test.ts`.
+ * `fittsEase` and `curveForEasing` (this file used to define both directly)
+ * now live in `@telekinesis/schema`'s easing.ts as pure math with no DOM
+ * dependency — needed on both sides of a recorded drag-and-drop:
+ * `GhostCursor.moveTo` below (the visual) and `@telekinesis/engine`'s
+ * `record.ts` (the real, stepped Playwright pointer) resolve their motion
+ * curve through the exact same `curveForEasing`, so a recorded drag's
+ * cursor and pointer can never diverge. Re-exported here so every existing
+ * `import { fittsEase } from "@telekinesis/core"` (or straight from
+ * `"./cursor"`, as `test/cursor-motion.test.ts` does) keeps working
+ * unchanged. See `curveForEasing`'s doc comment in schema for the full
+ * rationale.
  */
-export function fittsEase(t: number, exaggeration = 3.2): number {
-  const c = t < 0 ? 0 : t > 1 ? 1 : t;
-  return 1 - Math.pow(1 - c, exaggeration);
-}
-
-function curveForEasing(easing: EasingPattern | undefined): (t: number) => number {
-  if (easing === undefined || easing === "ease-in-out") return fittsEase;
-  return jsEasing[easing];
-}
+export { fittsEase } from "@telekinesis/schema";
 
 /**
  * A short-lived set of pre-allocated "afterimage" elements trailing the

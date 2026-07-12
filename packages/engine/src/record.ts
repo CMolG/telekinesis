@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  curveForEasing,
   parseTimesheet,
   planTyping,
   SOUND_PROFILES,
@@ -243,8 +244,22 @@ async function runEffectOnPage(
       await page.mouse.move(from.x, from.y);
       await page.mouse.down();
       const stepDelay = eff.duration / DRAG_STEPS;
+      // The exact same curve `fireGhostGlide` above is resolving `eff.easing`
+      // through right now, on the runtime side (core's `dragGlide` →
+      // `GhostCursor.moveTo` → `curveForEasing`) — see that function's doc
+      // comment in `@telekinesis/schema`'s easing.ts, the single source of
+      // truth both the real pointer here and the ghost visual resolve their
+      // motion curve through. This loop previously hardcoded its own
+      // `easeOutQuad`, which silently diverged from the ghost's curve for
+      // any non-default easing — and even for the schema default
+      // `"ease-in-out"`, since the ghost substitutes `fittsEase` there (see
+      // `curveForEasing`) while the old local curve didn't — letting the
+      // dragged element and the cursor "leading" it drift apart mid-trip.
+      // Resolved once, outside the loop: `eff.easing` doesn't change
+      // mid-drag.
+      const ease = curveForEasing(eff.easing);
       for (let i = 1; i <= DRAG_STEPS; i++) {
-        const t = easeOutQuad(i / DRAG_STEPS);
+        const t = ease(i / DRAG_STEPS);
         await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
         await page.waitForTimeout(stepDelay);
       }
@@ -287,16 +302,6 @@ function runVisual(page: Page, eff: Effect): Promise<void> {
  * over `eff.duration` (rather than a handful of choppy jumps), without
  * spending a CDP round trip per GIF frame. */
 const DRAG_STEPS = 22;
-
-/**
- * Ease-out quad — fast start, gentle arrival into the drop target. Roughly
- * matches the ghost cursor's own default deceleration-into-target feel
- * (`fittsEase` in `@telekinesis/core`'s cursor.ts) without pulling that
- * browser-only math into this Node-side recorder for the sake of one curve.
- */
-function easeOutQuad(t: number): number {
-  return 1 - (1 - t) * (1 - t);
-}
 
 /** Await phase 1 of a drag-and-drop's visual (the ghost cursor's approach to
  * the source) via the runtime, and hand back the exact source point it
