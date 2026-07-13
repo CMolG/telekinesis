@@ -145,17 +145,35 @@ export function fittsEase(t: number, exaggeration = 3.2): number {
  * `jsEasing["ease-in-out"]`; every other named easing (an explicit author
  * choice) is honored as-is via `jsEasing`.
  *
- * Not meaningful for `"spring"`: `GhostCursor.moveTo` branches to a
- * physically-integrated spring (`flySpring`, timing.ts's `Spring`) *before*
- * ever calling this, since a spring isn't a fixed-duration progress curve.
- * `jsEasing.spring` (a cubic-bezier-shaped fixed-duration approximation)
- * exists only as that same effect's CSS transition fallback — passing
- * `"spring"` here returns that approximation. `GhostCursor.moveTo` never
- * does (it branches to `flySpring` first), but the engine recorder's real
- * drag pointer does NOT yet mirror that branch: a drag authored with
- * `easing: "spring"` runs the approximation on the real pointer while the
- * ghost runs true spring physics — a known, dormant desync (no shipped
- * timesheet uses it) tracked for the easing work in Plan 1.
+ * Not meaningful for `"spring"` *outside of a drag's carry glide*:
+ * `GhostCursor.moveTo` branches to a physically-integrated spring
+ * (`flySpring`, timing.ts's `Spring`) *before* ever calling this, since a
+ * spring isn't a fixed-duration progress curve — so for a bare `cursor-move`
+ * effect (the only other caller that ever forwards a user-authored `easing:
+ * "spring"` into `GhostCursor.moveTo`), `"spring"` always means that true,
+ * variable-duration spring. `jsEasing.spring` (a cubic-bezier-shaped
+ * fixed-duration approximation) exists as that same effect's CSS transition
+ * fallback, and as `GhostCursor.moveTo`'s own opt-in escape hatch:
+ * `MoveOptions.approximateSpring` (cursor.ts) skips the `flySpring` branch
+ * and resolves through this function instead, returning the approximation.
+ *
+ * `dragGlide` (`@telekinesis/core`'s effects.ts) is the one caller that sets
+ * it, unconditionally, for exactly the reason this function's own doc
+ * comment above states: a drag's carry must resolve its motion curve
+ * through the *same* fixed-duration function on every leg that moves in
+ * lockstep — the self-mode dragged element's CSS transition (`cssEasing`,
+ * already a fixed-duration approximation for `spring`) and, in external
+ * mode, the engine recorder's real, stepped Playwright pointer (`record.ts`,
+ * which resolves `eff.easing` through this very function). Before
+ * `approximateSpring` existed, `GhostCursor.moveTo` had no way to opt out of
+ * `flySpring`, so a drag authored with `easing: "spring"` ran the
+ * approximation on the real pointer (external mode) while the ghost's glide
+ * ran true, variable-duration spring physics — a dormant desync (no shipped
+ * timesheet used it) tracked for the easing work in Plan 1 and closed by it:
+ * all three legs of a `spring`-eased drag now share this one curve and one
+ * fixed duration. A `cursor-move` effect and a drag's own brief pick-up
+ * approach (hardcoded to `"ease-out"`, never `"spring"`) are unaffected and
+ * keep their existing behavior exactly.
  */
 export function curveForEasing(easing: EasingPattern | undefined): (t: number) => number {
   if (easing === undefined || easing === "ease-in-out") return fittsEase;

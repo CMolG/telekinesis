@@ -126,6 +126,21 @@ export interface MoveOptions {
    * sweep, not on every click's tiny approach.
    */
   trail?: boolean;
+  /**
+   * For `easing: "spring"` only: resolve through `curveForEasing` (the
+   * fixed-duration `jsEasing.spring` cubic-bezier-shaped approximation)
+   * instead of the default `flySpring` (a true, physically-integrated,
+   * variable-duration spring). Every other caller wants the nicer real
+   * spring — this exists solely for `dragGlide` (effects.ts), whose carry
+   * glide must stay paced to a fixed `duration` in lockstep with two other
+   * legs that can't follow variable-duration physics: the self-mode dragged
+   * element's CSS transition, and (in external/recorded mode)
+   * `@telekinesis/engine`'s `record.ts`, which drives the real pointer
+   * through this same `curveForEasing`. Off by default. See
+   * `curveForEasing`'s doc comment in `@telekinesis/schema`'s easing.ts for
+   * the full lockstep rationale.
+   */
+  approximateSpring?: boolean;
 }
 
 /** A fake mouse pointer that travels along human-looking curves. */
@@ -184,7 +199,7 @@ export class GhostCursor {
     };
 
     try {
-      if (opts.easing === "spring") {
+      if (opts.easing === "spring" && !opts.approximateSpring) {
         await this.flySpring(from, flightTarget, place, opts.signal);
       } else {
         const ease = curveForEasing(opts.easing);

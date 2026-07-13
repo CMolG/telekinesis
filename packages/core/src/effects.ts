@@ -216,7 +216,24 @@ export async function dragGlide(
       fromEl.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
     }
   }
-  await cursor.moveTo(to, { duration: effect.duration, easing: effect.easing, signal });
+  await cursor.moveTo(to, {
+    duration: effect.duration,
+    easing: effect.easing,
+    signal,
+    // A drag's carry must stay in lockstep with two other,
+    // independently-timed legs that can't follow variable-duration
+    // physics: the self-mode dragged element's CSS transition right above
+    // (already `cssEasing.spring`, a fixed-duration approximation) and, in
+    // external/recorded mode, the engine recorder's real, stepped
+    // Playwright pointer (`record.ts`), which resolves `eff.easing`
+    // through `curveForEasing`. `approximateSpring` makes the ghost's
+    // glide follow that exact same fixed-duration curve for `spring`
+    // specifically — trading a slightly less springy *feel* for a dragged
+    // element and its "leading" cursor that visibly move as one, on both
+    // self and external recordings. No-op for every other easing. See
+    // `curveForEasing`'s doc comment in `@telekinesis/schema`'s easing.ts.
+    approximateSpring: true,
+  });
   if (effect.soundProfile) ctx.mark(effect.soundProfile);
 }
 

@@ -297,6 +297,38 @@ test("drag-and-drop: the ghost cursor ends at the destination frame", async ({ p
   expectNear(pos, center, CURSOR_SETTLE_TOLERANCE_PX);
 });
 
+/**
+ * Regression guard for the `approximateSpring` wiring (`MoveOptions`,
+ * `packages/core/src/cursor.ts`) that closes the spring-drag lockstep gap
+ * documented on `curveForEasing` in `@telekinesis/schema`'s easing.ts:
+ * `dragGlide` (core's effects.ts) now always passes `approximateSpring: true`
+ * to `GhostCursor.moveTo`, so a `spring`-eased drag's carry resolves through
+ * the fixed-duration `curveForEasing` approximation instead of branching to
+ * `flySpring`. This only re-asserts the same settle invariant as the test
+ * above (this doesn't/can't observe Playwright's real pointer here — that
+ * lockstep is exercised by the recorder, not a bare `runEffect` call) —
+ * enough to catch the `approximateSpring` flag being dropped, miswired, or
+ * throwing, which would otherwise sit dormant until someone authored a
+ * `spring`-eased drag timesheet.
+ */
+test("drag-and-drop: a spring-eased carry still settles on the destination frame", async ({
+  page,
+}) => {
+  await page.goto("/?demo");
+  await waitForRuntime(page);
+
+  await runEffect(page, {
+    action: "drag-and-drop",
+    frameId: "tier-pro",
+    destFrameId: "pricing",
+    duration: 250,
+    easing: "spring",
+  });
+
+  const [pos, center] = await Promise.all([cursorPosition(page), frameCenter(page, "pricing")]);
+  expectNear(pos, center, CURSOR_SETTLE_TOLERANCE_PX);
+});
+
 test("wait: runEffect takes at least the requested duration, without excessive overrun", async ({
   page,
 }) => {
