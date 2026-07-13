@@ -158,22 +158,16 @@ export function fittsEase(t: number, exaggeration = 3.2): number {
  * and resolves through this function instead, returning the approximation.
  *
  * `dragGlide` (`@telekinesis/core`'s effects.ts) is the one caller that sets
- * it, unconditionally, for exactly the reason this function's own doc
- * comment above states: a drag's carry must resolve its motion curve
- * through the *same* fixed-duration function on every leg that moves in
- * lockstep — the self-mode dragged element's CSS transition (`cssEasing`,
- * already a fixed-duration approximation for `spring`) and, in external
- * mode, the engine recorder's real, stepped Playwright pointer (`record.ts`,
- * which resolves `eff.easing` through this very function). Before
- * `approximateSpring` existed, `GhostCursor.moveTo` had no way to opt out of
- * `flySpring`, so a drag authored with `easing: "spring"` ran the
- * approximation on the real pointer (external mode) while the ghost's glide
- * ran true, variable-duration spring physics — a dormant desync (no shipped
- * timesheet used it) tracked for the easing work in Plan 1 and closed by it:
- * all three legs of a `spring`-eased drag now share this one curve and one
- * fixed duration. A `cursor-move` effect and a drag's own brief pick-up
- * approach (hardcoded to `"ease-out"`, never `"spring"`) are unaffected and
- * keep their existing behavior exactly.
+ * it, unconditionally: a drag's carry must resolve its motion curve through
+ * the *same* fixed-duration function on every lockstep leg — the self-mode
+ * dragged element's CSS transition (`cssEasing`, already a fixed-duration
+ * approximation for `spring`) and, in external mode, the engine recorder's
+ * real, stepped Playwright pointer (`record.ts`, which resolves `eff.easing`
+ * through this very function). Previously the ghost's glide alone branched
+ * to `flySpring`'s variable-duration physics — a dormant desync (no shipped
+ * timesheet used it) tracked for Plan 1's easing work. `approximateSpring`
+ * closed it: all three legs of a `spring`-eased drag now share one curve
+ * and one fixed duration.
  */
 export function curveForEasing(easing: EasingPattern | undefined): (t: number) => number {
   if (easing === undefined || easing === "ease-in-out") return fittsEase;

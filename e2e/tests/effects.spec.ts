@@ -298,35 +298,57 @@ test("drag-and-drop: the ghost cursor ends at the destination frame", async ({ p
 });
 
 /**
- * Regression guard for the `approximateSpring` wiring (`MoveOptions`,
- * `packages/core/src/cursor.ts`) that closes the spring-drag lockstep gap
- * documented on `curveForEasing` in `@telekinesis/schema`'s easing.ts:
- * `dragGlide` (core's effects.ts) now always passes `approximateSpring: true`
- * to `GhostCursor.moveTo`, so a `spring`-eased drag's carry resolves through
- * the fixed-duration `curveForEasing` approximation instead of branching to
- * `flySpring`. This only re-asserts the same settle invariant as the test
- * above (this doesn't/can't observe Playwright's real pointer here — that
- * lockstep is exercised by the recorder, not a bare `runEffect` call) —
- * enough to catch the `approximateSpring` flag being dropped, miswired, or
- * throwing, which would otherwise sit dormant until someone authored a
- * `spring`-eased drag timesheet.
+ * Regression teeth for the `approximateSpring` wiring that closes the
+ * spring-drag lockstep gap (`MoveOptions` in `packages/core/src/cursor.ts`;
+ * rationale on `curveForEasing` in `@telekinesis/schema`'s easing.ts):
+ * `dragGlide` (core's effects.ts) passes `approximateSpring: true`, so a
+ * `spring`-eased carry runs the fixed-duration `curveForEasing`
+ * approximation instead of `flySpring`'s variable-duration physics.
+ *
+ * A settle-position assertion alone has NO teeth for that: `moveTo` ends
+ * with an exact `place(target)` snap on both branches, so the resting
+ * position is identical with or without the flag. What separates the
+ * branches is wall-clock time — the elapsed bound is the load-bearing
+ * assertion. Measured on this exact effect (1280x720, ~600px carry):
+ *  - approximation path (flag wired): ~1480ms = approach 200ms + its
+ *    overshoot settle (SETTLE_MAX_DURATION_MS cap, 420ms) + pressPulse
+ *    260ms + glide 150ms + glide settle 420ms.
+ *  - flySpring path (flag dropped, verified by mutation): ~2200ms — the
+ *    glide's fixed 150ms is replaced by travel-spring physics running to
+ *    rest (~860ms here; TRAVEL_MAX_DURATION_MS caps it at 2200ms).
+ * The 1800ms bound sits between with ≥300ms margin each way. Every phase of
+ * the passing path is a wall-clock duration or cap (rAF loops end on
+ * elapsed time, not frame count), so CI jank costs at most ~a frame per
+ * phase; what WOULD move this number is retuning the cursor springs (e.g.
+ * raising the 420ms settle cap) — a change that should consciously revisit
+ * this bound. Out of scope: the real Playwright pointer, unobservable from
+ * a bare `runEffect` call — record.ts owns that side of the lockstep. This
+ * guards the ghost-side branch only.
  */
-test("drag-and-drop: a spring-eased carry still settles on the destination frame", async ({
+test("drag-and-drop: a spring-eased carry runs the fixed-duration approximation, not flySpring physics", async ({
   page,
 }) => {
   await page.goto("/?demo");
   await waitForRuntime(page);
 
-  await runEffect(page, {
+  // Far, explicit destination: a long (~600px) carry separates the branches
+  // maximally, since travel-spring settle time grows with distance while
+  // the approximation always takes exactly `duration`. (The sibling test's
+  // tier-pro→pricing pair is useless for this: tier-pro sits *inside*
+  // pricing, so that glide is a few px and both branches finish fast.)
+  const DEST = { x: 80, y: 80 };
+  const elapsed = await runEffect(page, {
     action: "drag-and-drop",
     frameId: "tier-pro",
-    destFrameId: "pricing",
-    duration: 250,
+    destX: DEST.x,
+    destY: DEST.y,
+    duration: 150,
     easing: "spring",
   });
 
-  const [pos, center] = await Promise.all([cursorPosition(page), frameCenter(page, "pricing")]);
-  expectNear(pos, center, CURSOR_SETTLE_TOLERANCE_PX);
+  const pos = await cursorPosition(page);
+  expectNear(pos, DEST, CURSOR_SETTLE_TOLERANCE_PX);
+  expect(elapsed).toBeLessThan(1800);
 });
 
 test("wait: runEffect takes at least the requested duration, without excessive overrun", async ({

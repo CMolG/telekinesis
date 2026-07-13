@@ -72,6 +72,17 @@ describe("jsEasing", () => {
     expect(Math.max(...samples)).toBeGreaterThan(1);
     expect(f(1)).toBeCloseTo(1, 9);
   });
+
+  // `ease-in-out-back` is the one curve that additionally *undershoots*
+  // below 0 on the way in (min ≈ −0.100 near t ≈ 0.24) — the "wind-up" half
+  // of a symmetric back-ease. `spring` and `ease-out-back` are deliberately
+  // not listed: they overshoot past 1 at the end but never dip below 0.
+  const UNDERSHOOTING: EasingPattern[] = ["ease-in-out-back"];
+  it.each(UNDERSHOOTING)("%s undershoots below 0 on the way in", (name) => {
+    const f = jsEasing[name];
+    const samples = Array.from({ length: 99 }, (_, i) => f((i + 1) / 100));
+    expect(Math.min(...samples)).toBeLessThan(0);
+  });
 });
 
 describe("cssEasing", () => {
