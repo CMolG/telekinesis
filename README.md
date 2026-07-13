@@ -171,11 +171,11 @@ is real: recorded by `pnpm gallery:record`, not hand-picked, and kept honest by
 
 #### `click`
 
-<img src="public/gallery/click.gif" width="480" alt="click effect" />
+<img src="public/gallery/click.gif" width="480" alt="ghost cursor travels to a button, clicks, a ripple blooms outward" />
 
 The ghost cursor travels to the button, presses, and a ripple blooms
-outward — a real Playwright click, not a drawn glyph. `soundProfile`
-times the click's sound to the exact frame the ripple starts.
+outward — a real Playwright click, not a drawn glyph. The ripple plays
+out first; `soundProfile`'s sound lands with the real click itself, right after.
 
 <details><summary>The timesheet that filmed this GIF</summary>
 
@@ -199,11 +199,12 @@ times the click's sound to the exact frame the ripple starts.
 
 #### `type-down`
 
-<img src="public/gallery/type-down.gif" width="480" alt="type-down effect" />
+<img src="public/gallery/type-down.gif" width="480" alt="text types into a field at human speed, a stray keystroke backspaced and corrected live" />
 
-Types at human speed, complete with a stray keystroke that gets
-backspaced and corrected live — `mistakes: true` plants exactly one typo
-per run. `typingSpeed` (ms/char) sets the cadence, `soundProfile` the clatter.
+Types at human speed — `mistakes: true` gives each character a small,
+independent chance of a typo that gets backspaced and corrected live, so
+a run might land clean or catch a few. `typingSpeed` (ms/char) sets the
+cadence, `soundProfile` the clatter.
 
 <details><summary>The timesheet that filmed this GIF</summary>
 
@@ -238,7 +239,7 @@ per run. `typingSpeed` (ms/char) sets the cadence, `soundProfile` the clatter.
 
 #### `drag-and-drop`
 
-<img src="public/gallery/drag-and-drop.gif" width="480" alt="drag-and-drop effect" />
+<img src="public/gallery/drag-and-drop.gif" width="480" alt="ghost cursor picks up a card and carries it into a drop zone" />
 
 Picks up the card and carries it into the drop zone, the cursor leading
 the whole trip. `destFrameId` resolves the drop point at runtime — no
@@ -275,7 +276,7 @@ hardcoded pixels — and `easing` shapes the glide.
 
 #### `shake`
 
-<img src="public/gallery/shake.gif" width="480" alt="shake effect" />
+<img src="public/gallery/shake.gif" width="480" alt="a sharp decaying wobble shakes the target, then settles" />
 
 A sharp, decaying wobble on the target — anticipation before a click,
 impossible to miss and gone in a blink. `intensity` (`low·medium·high`)
@@ -307,7 +308,7 @@ sets the amplitude; `duration` how long it takes to decay.
 
 #### `zoom-in`
 
-<img src="public/gallery/zoom-in.gif" width="480" alt="zoom-in effect" />
+<img src="public/gallery/zoom-in.gif" width="480" alt="the camera pushes into a card and holds" />
 
 The camera pushes into the frame and holds — a matrix scale+translate
 anchored on `frameId`, eased by `easing`. `scale` sets how far it
@@ -337,7 +338,7 @@ pushes in before the hold.
 
 #### `zoom-out`
 
-<img src="public/gallery/zoom-out.gif" width="480" alt="zoom-out effect" />
+<img src="public/gallery/zoom-out.gif" width="480" alt="the camera pulls back out from a card to the full page" />
 
 A clean pull back to scale 1 after a prior zoom-in — the same camera,
 `duration` and `easing` set the pace of the release; it has no `frameId`
@@ -374,7 +375,7 @@ of its own, it just reverses whatever the last zoom-in framed.
 
 #### `scroll-down`
 
-<img src="public/gallery/scroll-down.gif" width="480" alt="scroll-down effect" />
+<img src="public/gallery/scroll-down.gif" width="480" alt="the page glides down and eases to a stop mid-content" />
 
 The window glides down the page and eases to a stop mid-content —
 `distance` in pixels (or `"viewport"`) sets how far, `duration` and
@@ -404,7 +405,7 @@ The window glides down the page and eases to a stop mid-content —
 
 #### `scroll-up`
 
-<img src="public/gallery/scroll-up.gif" width="480" alt="scroll-up effect" />
+<img src="public/gallery/scroll-up.gif" width="480" alt="the page sails back up and eases to a stop higher on the article" />
 
 The mirror of scroll-down: sails back up by `distance` pixels over
 `duration`, shaped by the same `easing` vocabulary — here starting
@@ -435,7 +436,7 @@ mid-article and returning to where the interactive sets begin.
 
 #### `cursor-move`
 
-<img src="public/gallery/cursor-move.gif" width="480" alt="cursor-move effect" />
+<img src="public/gallery/cursor-move.gif" width="480" alt="ghost cursor sweeps diagonally across the stage, corner to corner" />
 
 A long diagonal sweep corner to corner. `curve: "arc"` bows the path so
 it reads as a hand, not a robot; `destFrameId` picks the destination and
@@ -466,7 +467,7 @@ it reads as a hand, not a robot; `destFrameId` picks the destination and
 
 #### `highlight`
 
-<img src="public/gallery/highlight.gif" width="480" alt="highlight effect" />
+<img src="public/gallery/highlight.gif" width="480" alt="a spotlight dims the page and slides from a card to the button inside it" />
 
 The spotlight dims everything but a rounded cutout around `frameId`,
 then slides from the whole card to just the button inside it. `padding`
@@ -497,7 +498,7 @@ controls how tightly the cutout hugs the frame.
 
 #### `wait`
 
-<img src="public/gallery/wait.gif" width="480" alt="wait effect" />
+<img src="public/gallery/wait.gif" width="480" alt="a held spotlight pauses, then slides over to a second target" />
 
 A pure pause — `duration` in milliseconds, nothing else. Here it's
 bracketed by two `highlight` calls so the held beat reads as rhythm in
