@@ -36,6 +36,36 @@ jobs:
       - name: Build docs
         run: pnpm docs:build
 
+  # Playwright e2e in a real browser: playground runtime/effects, plus the
+  # full record -> mix -> gif pipeline through real ffmpeg (see README's
+  # "Quality"). Parallel to build, same push/PR trigger.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: System deps
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg gifsicle
+          pnpm --filter @telekinesis/e2e exec playwright install --with-deps chromium
+      - name: Assert ffmpeg present (no silent skips)
+        run: ffmpeg -version | head -1
+      - name: E2E
+        run: pnpm e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-artifacts
+          path: e2e/test-results
+
   # Records each docs section into a GIF by driving the site with a real browser.
   # Heavy (browsers + ffmpeg), so it runs on demand rather than on every push.
   motion:
@@ -52,7 +82,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: System deps
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg
+          sudo apt-get update && sudo apt-get install -y ffmpeg gifsicle
           pnpm exec playwright install --with-deps chromium
       - name: Build docs
         run: pnpm docs:build
@@ -62,3 +92,13 @@ jobs:
         with:
           name: motion-gifs
           path: apps/docs/public/motion/*.gif
+      # Re-records the gallery GIFs the README embeds (public/gallery/*.gif).
+      # This job only uploads them for review — it never commits. Promoting a
+      # re-recording stays a human PR: download the gallery-gifs artifact,
+      # replace the files under public/gallery, and review the diff.
+      - name: Record gallery
+        run: pnpm gallery:record
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gallery-gifs
+          path: public/gallery/*.gif
