@@ -76,6 +76,18 @@ const ONLY = process.env.TK_GALLERY_ONLY;
  *   this encoder shows, not because fps12/width480 reliably fits them).
  *   fps10+width440 measured 602KB — a 33% margin, comfortably absorbing
  *   that variance instead of gambling on it every re-record.
+ *
+ * Cross-OS note (measured on CI run 29261031483, ubuntu-latest, 2026-07-13):
+ * Linux-recorded GIFs do NOT match the committed macOS-recorded bytes and
+ * never will — static-scene clips (click, shake, type-down, cursor-move)
+ * inflate 3-5x on Linux because per-frame rendering noise (AA/gradient
+ * dither under `backdrop-filter`) defeats the inter-frame compression that
+ * makes them tiny on macOS, while full-motion clips (zoom-in: +0.0%) were
+ * already incompressible and match closely. Everything still fit the per-GIF
+ * and total budgets on CI — the budget guard is the contract; byte-level
+ * cross-OS determinism is not. Don't "fix" a size diff by committing
+ * CI-recorded GIFs: keep recording them on macOS (or accept the size jump
+ * knowingly).
  */
 const JOB_OVERRIDES: Record<string, { fps?: number; width?: number }> = {
   hero: { fps: 10 },
