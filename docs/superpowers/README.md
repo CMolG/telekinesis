@@ -57,7 +57,27 @@ la CI en contrato.
 - [ ] Plan 2 — secuencias ready-to-use
 - [ ] Plan 3 — Studio pro + librería de componentes
 - [ ] Plan 4 — Login/Safe + datos mock
-- [ ] Plan 5 — QA + galería + README
+- [x] Plan 5 — QA + galería + README *(2026-07-13; ver notas)*
+
+### Notas de ejecución — Plan 5
+
+- El hero de la galería es un **timesheet propio** (`examples/gallery/hero.timesheet.json`,
+  tour condensado de la landing, ~11s): `landing-demo.timesheet.json` (28s, 20 pasos) medía
+  2.1MB — 2.4× el presupuesto — incluso degradado a fps10/width480. El plan asumía que cabría.
+- Ajustes de encoding medidos (documentados en `e2e/scripts/record-gallery.ts`): width por
+  defecto 480 (560 reventaba presupuesto en los zooms), overrides por clip
+  (`hero` fps10; `zoom-in`/`zoom-out` fps10+width440 tras medir varianza run-a-run de ±25-30%).
+- **Cross-OS**: los GIFs grabados en CI (ubuntu) no igualan los bytes committeados (macOS)
+  — clips estáticos inflan 3-5× por ruido de render, clips de movimiento clavan el tamaño.
+  El presupuesto duro es el contrato (todo pasó en CI); el ±10% de la Task 9.3 no es alcanzable
+  entre SOs.
+- Mejoras de engine que el plan no preveía y la calidad de los GIFs exigió: carry sincronizado
+  del drag externo (visual + drag real con pasos, curva compartida vía `curveForEasing` en
+  schema), `mistakes` honrado en grabación externa (typo real + backspace), hook
+  `afterTimeline` en `RecordOptions`.
+- Deuda registrada: `easing: "spring"` en drag-and-drop no espeja la rama `flySpring` del
+  cursor en el recorder (durmiente, documentado en `packages/schema/src/easing.ts`) — para el
+  Plan 1, que toca easings.
 
 Al completar un plan: marcar aquí, y si cambió algún invariante de esta página,
 actualizarla en el mismo PR.
