@@ -83,7 +83,9 @@ jobs:
       - name: System deps
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg gifsicle
-          pnpm exec playwright install --with-deps chromium
+          # Scoped: the root has no playwright bin (ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+          # on a clean runner); the engine workspace owns the playwright dep record() uses.
+          pnpm --filter @telekinesis/engine exec playwright install --with-deps chromium
       - name: Build docs
         run: pnpm docs:build
       - name: Record motion
