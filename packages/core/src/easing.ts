@@ -22,12 +22,13 @@ export { jsEasing } from "@telekinesis/schema";
  * `animateSpring`) and is wired into `cursor.ts` and `camera.ts`, which run
  * their own rAF loops instead of a CSS transition.
  *
- * The four 2026-07 additions are standard easings.net cubic-bezier
- * approximations — close enough for a CSS fallback; `jsEasing` (now
- * `@telekinesis/schema`'s) has the exact closed-form functions for
- * rAF-driven playback. Stays in this file (not moved to schema alongside
- * `jsEasing`) because nothing outside the browser runtime needs a CSS
- * timing-function string.
+ * The four 2026-07 additions and the three 2026-07-13 additions (plan 1
+ * backlog — see their own inline comments below) are all standard
+ * easings.net cubic-bezier approximations — close enough for a CSS
+ * fallback; `jsEasing` (now `@telekinesis/schema`'s) has the exact
+ * closed-form functions for rAF-driven playback. Stays in this file (not
+ * moved to schema alongside `jsEasing`) because nothing outside the browser
+ * runtime needs a CSS timing-function string.
  */
 export const cssEasing: Record<EasingPattern, string> = {
   linear: "linear",
@@ -39,4 +40,9 @@ export const cssEasing: Record<EasingPattern, string> = {
   "ease-out-quint": "cubic-bezier(0.22, 1, 0.36, 1)",
   "ease-out-circ": "cubic-bezier(0, 0.55, 0.45, 1)",
   "ease-out-back": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+  // Added 2026-07-13: plan 1 backlog. Standard easings.net cubic-bezier
+  // approximations for the closed forms `jsEasing` (schema) defines.
+  "ease-in-expo": "cubic-bezier(0.7, 0, 0.84, 0)",
+  "ease-out-expo": "cubic-bezier(0.16, 1, 0.3, 1)",
+  "ease-in-out-back": "cubic-bezier(0.68, -0.6, 0.32, 1.6)",
 };

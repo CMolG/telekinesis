@@ -19,6 +19,10 @@ export const EasingPattern = z.enum([
   "ease-out-quint",
   "ease-out-circ",
   "ease-out-back",
+  // Added 2026-07-13: plan 1 backlog (docs/superpowers/plans/2026-07-06-01-animation-transition-library.md).
+  "ease-in-expo",
+  "ease-out-expo",
+  "ease-in-out-back",
 ]);
 export type EasingPattern = z.infer<typeof EasingPattern>;
 
@@ -81,6 +85,22 @@ export const jsEasing: Record<EasingPattern, (t: number) => number> = {
     const c1 = 1.70158;
     const c3 = c1 + 1;
     return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+  },
+  // Added 2026-07-13: plan 1 backlog. Closed forms from easings.net.
+  // Exponential ease-in: near-flat start that snaps into a steep launch —
+  // the mirror image of `ease-out-expo` below, for a "wind-up" feel.
+  "ease-in-expo": (t) => (t === 0 ? 0 : Math.pow(2, 10 * t - 10)),
+  // Exponential ease-out: steep launch, near-flat long tail — a snappier,
+  // single-direction cousin of `ease-in-out-expo`'s symmetric hyperspace jump.
+  "ease-out-expo": (t) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
+  // Back ease-in-out: undershoots below 0 on the way in, then overshoots
+  // past 1 on the way out before landing exactly on 1 — `ease-out-back`'s
+  // symmetric sibling, a wind-up *and* an arrival kick.
+  "ease-in-out-back": (t) => {
+    const c = 1.70158 * 1.525;
+    return t < 0.5
+      ? (Math.pow(2 * t, 2) * ((c + 1) * 2 * t - c)) / 2
+      : (Math.pow(2 * t - 2, 2) * ((c + 1) * (2 * t - 2) + c) + 2) / 2;
   },
 };
 
