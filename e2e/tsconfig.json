@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // DOM types are needed because specs and helpers reference `window`
+    // inside page.evaluate/waitForFunction callbacks.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"]
+  },
+  "include": ["global.d.ts", "helpers.ts", "playwright.config.ts", "tests", "scripts"]
+}

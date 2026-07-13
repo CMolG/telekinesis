@@ -1,8 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  curveForEasing,
   parseTimesheet,
+  planTyping,
   SOUND_PROFILES,
+  type DragAndDropEffect,
   type Effect,
   type SoundProfile,
 } from "@telekinesis/schema";
@@ -32,6 +35,22 @@ export interface RecordOptions {
   /** How long to wait for `window.__telekinesis` to be ready (ms). */
   runtimeTimeout?: number;
   onStep?: (index: number, total: number, effect: Effect) => void;
+  /**
+   * Invoked with the live `Page` once the timeline has finished driving it,
+   * after `durationMs` is captured but before the recording context (and
+   * therefore the page) closes. Purely for post-run inspection/assertions —
+   * e.g. reading a field's real DOM value — never for further recorded
+   * interaction: by the time this runs, every mark in the returned
+   * `audioMap` has already been collected and the video is already fully
+   * choreographed, so nothing the hook does can retroactively change what
+   * was recorded (it can, if capturing video, add a few extra static frames
+   * to the tail while it runs). Additive/optional — existing callers are
+   * unaffected. Used by the e2e suite to catch "the video looks fine but the
+   * underlying state is wrong" regressions Playwright's own recording can't
+   * otherwise see (e.g. a typo'd character that was never actually
+   * corrected).
+   */
+  afterTimeline?: (page: Page) => void | Promise<void>;
 }
 
 export interface RecordResult {
@@ -100,6 +119,13 @@ export async function record(
     }
 
     const durationMs = Date.now() - start;
+
+    // The timeline is done and every mark above is already collected, but
+    // the page/context are still alive — give the caller a chance to inspect
+    // final in-page state before everything is torn down. See the doc
+    // comment on `RecordOptions.afterTimeline`.
+    await opts.afterTimeline?.(page);
+
     const video = captureVideo ? page.video() : null;
     await context.close(); // flushes the video file
     const videoPath = video ? await video.path() : "";
@@ -139,28 +165,110 @@ async function runEffectOnPage(
     case "type-down": {
       const field = await editable(frameLocator(page, eff.frameId));
       await field.click({ force: true });
-      for (const ch of [...eff.text]) {
-        mark(eff.soundProfile);
-        await field.pressSequentially(ch, { delay: 0 });
-        await page.waitForTimeout(eff.typingSpeed);
+      // `planTyping` is the same pure decision function self-mode `typeInto`
+      // (core/effects.ts) uses, so a recorded typo has identical shape/odds
+      // to a live-preview one — including `startNonEmpty`: effects.ts derives
+      // it from its own buffer (`current.length > 0`), so this reads the
+      // field's *live* value the same way instead of always assuming a fresh
+      // field (a recording onto a pre-filled field must get the same typo
+      // eligibility a live preview would). Mirrors effects.ts's `read`:
+      // `inputValue()` for input/textarea/select, falling back to
+      // `textContent()` for a contenteditable (where `inputValue()` throws).
+      // With `mistakes` false (the default) this returns one plain step per
+      // character and the loop below reduces to exactly the previous
+      // behavior.
+      const currentText = (await field.inputValue().catch(() => field.textContent())) ?? "";
+      const steps = planTyping(eff.text, eff.mistakes, {
+        startNonEmpty: currentText.length > 0,
+      });
+      for (const step of steps) {
+        if (step.typo) {
+          // Real wrong keystroke, a beat, a real Backspace, another beat —
+          // mirrors typeInto's typo+correction rhythm (write, pause,
+          // backspace, pause) with actual Playwright input instead of a
+          // synthetic DOM write. The backspace itself stays unmarked, same
+          // as self mode: only the wrong keystroke and the eventual correct
+          // one make a sound.
+          await pressAndWait(page, field, step.typo, eff.typingSpeed, {
+            mark: () => mark(eff.soundProfile),
+          });
+          await pressAndWait(page, field, "Backspace", eff.typingSpeed, { named: true });
+        }
+        await pressAndWait(page, field, step.char, eff.typingSpeed, {
+          mark: () => mark(eff.soundProfile),
+        });
       }
       return;
     }
 
     case "drag-and-drop": {
-      await runVisual(page, eff); // cursor travels the path
-      const source = frameLocator(page, eff.frameId);
-      if (eff.destFrameId) {
-        await source.dragTo(frameLocator(page, eff.destFrameId), { force: true });
-      } else if (typeof eff.destX === "number" && typeof eff.destY === "number") {
-        const box = await source.boundingBox();
-        if (box) {
-          await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-          await page.mouse.down();
-          await page.mouse.move(eff.destX, eff.destY, { steps: 12 });
-          await page.mouse.up();
-        }
+      // Synchronized carry, in two phases — see `dragApproach`/`dragGlide`
+      // in `@telekinesis/core`'s effects.ts and the two runtime methods they
+      // back. Phase 1 (the ghost cursor's short approach to the source,
+      // ~200ms) is awaited on its own so the cursor visibly arrives before
+      // anything else happens. Phase 2 (the longer src→dest glide) is then
+      // *fired* — not awaited — and raced against a real, stepped Playwright
+      // drag paced to the same `eff.duration`. The gallery's DragDemo chip
+      // is a Pointer Events target with `setPointerCapture`
+      // (playground/src/gallery/App.tsx), so it rides along with whatever
+      // real pointer is down on it — on film, the chip travels *with* the
+      // ghost cursor instead of teleporting into place after it.
+      //
+      // The previous choreography awaited the *whole* two-leg visual first
+      // and only then performed the real drag as a single near-instant
+      // `dragTo` snap: cursor glides, a beat of dead air, the dragged
+      // element teleports. This keeps the two in lockstep the entire trip.
+      const from = await awaitGhostApproach(page, eff);
+      const to = await resolveDragDest(page, eff);
+      if (!to) {
+        // The schema's cross-field refinement (timesheet.ts's superRefine)
+        // guarantees a destination at parse time, so this is unreachable for
+        // any timesheet that made it through `parseTimesheet` — kept only so
+        // a malformed effect fails soft instead of throwing mid-recording.
+        mark(eff.soundProfile);
+        return;
       }
+
+      const glideDone = fireGhostGlide(page, eff, from); // not awaited yet
+      // Attach a no-op handler on this separate chain right away so a
+      // rejection landing before the `await glideDone` below (e.g. the page
+      // context tearing down mid-drag) is marked handled instead of
+      // surfacing as an unhandled rejection and hard-killing the whole
+      // Node process — which would skip every `finally` (browser.close(),
+      // record-gallery.ts's per-job temp-dir cleanup) and take out the rest
+      // of a multi-GIF batch over one flaky drag. `await glideDone` below
+      // still observes and rethrows the same rejection through its own
+      // chain — this only pre-empts the crash.
+      glideDone.catch(() => {});
+
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      const stepDelay = eff.duration / DRAG_STEPS;
+      // The exact same curve `fireGhostGlide` above is resolving `eff.easing`
+      // through right now, on the runtime side (core's `dragGlide` →
+      // `GhostCursor.moveTo` → `curveForEasing`) — see that function's doc
+      // comment in `@telekinesis/schema`'s easing.ts, the single source of
+      // truth both the real pointer here and the ghost visual resolve their
+      // motion curve through. This loop previously hardcoded its own
+      // `easeOutQuad`, which silently diverged from the ghost's curve for
+      // any non-default easing — and even for the schema default
+      // `"ease-in-out"`, since the ghost substitutes `fittsEase` there (see
+      // `curveForEasing`) while the old local curve didn't — letting the
+      // dragged element and the cursor "leading" it drift apart mid-trip.
+      // Resolved once, outside the loop: `eff.easing` doesn't change
+      // mid-drag.
+      const ease = curveForEasing(eff.easing);
+      for (let i = 1; i <= DRAG_STEPS; i++) {
+        const t = ease(i / DRAG_STEPS);
+        await page.mouse.move(from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t);
+        await page.waitForTimeout(stepDelay);
+      }
+      await page.mouse.up();
+
+      // The ghost cursor's own overshoot+settle spring (GhostCursor.moveTo)
+      // can run a little past `eff.duration` — wait for it so the next
+      // effect never starts while phase 2's visual is still resolving.
+      await glideDone;
       mark(eff.soundProfile);
       return;
     }
@@ -183,6 +291,103 @@ function runVisual(page: Page, eff: Effect): Promise<void> {
         .__telekinesis.runEffect(e),
     eff,
   );
+}
+
+/* ------------------------------------------------------------------ *
+ * drag-and-drop's synchronized carry — see the case above.
+ * ------------------------------------------------------------------ */
+
+/** Real-pointer samples across the destination carry. Within the ~20-25
+ * range a stepped drag needs to read as continuous motion once paced out
+ * over `eff.duration` (rather than a handful of choppy jumps), without
+ * spending a CDP round trip per GIF frame. */
+const DRAG_STEPS = 22;
+
+/** Await phase 1 of a drag-and-drop's visual (the ghost cursor's approach to
+ * the source) via the runtime, and hand back the exact source point it
+ * resolved — see `@telekinesis/core`'s `dragApproach`. */
+function awaitGhostApproach(
+  page: Page,
+  eff: DragAndDropEffect,
+): Promise<{ x: number; y: number }> {
+  return page.evaluate(
+    (e) =>
+      (
+        window as unknown as {
+          __telekinesis: { runDragApproach(effect: unknown): Promise<{ x: number; y: number }> };
+        }
+      ).__telekinesis.runDragApproach(e),
+    eff,
+  );
+}
+
+/** Fire phase 2 of a drag-and-drop's visual (the ghost cursor's src→dest
+ * glide) via the runtime — see `@telekinesis/core`'s `dragGlide`.
+ * Deliberately returns the in-flight promise rather than awaiting it: the
+ * "drag-and-drop" case above races this against a real, stepped drag so the
+ * dragged element rides along with the ghost cursor instead of teleporting
+ * once the visual is already done. */
+function fireGhostGlide(
+  page: Page,
+  eff: DragAndDropEffect,
+  from: { x: number; y: number },
+): Promise<void> {
+  return page.evaluate(
+    ({ effect, from: f }) =>
+      (
+        window as unknown as {
+          __telekinesis: {
+            runDragGlide(effect: unknown, from: { x: number; y: number }): Promise<void>;
+          };
+        }
+      ).__telekinesis.runDragGlide(effect, f),
+    { effect: eff, from },
+  );
+}
+
+/**
+ * A drag-and-drop's landing point in Playwright's (viewport CSS px) mouse
+ * coordinates — mirrors `destPoint` in `@telekinesis/core`'s effects.ts,
+ * Node-side, since this file drives the real pointer independently of the
+ * in-page runtime. `null` only for a malformed effect the schema should
+ * already have rejected at parse time (see the case above).
+ */
+async function resolveDragDest(
+  page: Page,
+  eff: DragAndDropEffect,
+): Promise<{ x: number; y: number } | null> {
+  if (eff.destFrameId) {
+    const box = await frameLocator(page, eff.destFrameId).boundingBox();
+    return box ? { x: box.x + box.width / 2, y: box.y + box.height / 2 } : null;
+  }
+  if (typeof eff.destX === "number" && typeof eff.destY === "number") {
+    return { x: eff.destX, y: eff.destY };
+  }
+  return null;
+}
+
+/**
+ * One keystroke of the type-down loop above: optionally record a sound mark,
+ * send the key, then hold for the typing cadence. `opts.named` sends a named
+ * key (e.g. `"Backspace"`) through `press`; otherwise `key` is typed through
+ * `pressSequentially`, same as an ordinary character. Extracted because this
+ * press/mark/wait idiom otherwise repeats three times per typo'd step (wrong
+ * char, backspace, correct char) and once per plain step.
+ */
+async function pressAndWait(
+  page: Page,
+  field: Locator,
+  key: string,
+  waitMs: number,
+  opts: { named?: boolean; mark?: () => void } = {},
+): Promise<void> {
+  opts.mark?.();
+  if (opts.named) {
+    await field.press(key);
+  } else {
+    await field.pressSequentially(key, { delay: 0 });
+  }
+  await page.waitForTimeout(waitMs);
 }
 
 /* ------------------------------------------------------------------ *

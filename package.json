@@ -18,6 +18,8 @@
     "docs:motion": "pnpm --filter @telekinesis/docs record:motion",
     "studio": "pnpm --filter @telekinesis/studio dev",
     "playground": "pnpm --filter @telekinesis/playground dev",
+    "e2e": "pnpm --filter @telekinesis/playground build && pnpm --filter @telekinesis/e2e test:e2e",
+    "gallery:record": "pnpm --filter @telekinesis/playground build && pnpm --filter @telekinesis/e2e gallery:record",
     "lint": "echo \"(lint not configured yet)\""
   },
   "devDependencies": {

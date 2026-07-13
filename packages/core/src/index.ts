@@ -49,6 +49,7 @@ export {
   type SpringParams,
 } from "./timing";
 export type { Point, RectJSON } from "./geometry";
+export { rectCenter } from "./geometry";
 
 // React surface (peer dependency)
 export {

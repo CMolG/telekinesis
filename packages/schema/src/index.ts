@@ -11,6 +11,7 @@ export * from "./effects";
 export * from "./timesheet";
 export * from "./jsonschema";
 export * from "./layout";
+export * from "./typing";
 
 /** Timesheet schema version this package speaks. */
 export const TELEKINESIS_SCHEMA_VERSION = "1.0" as const;

@@ -13,10 +13,13 @@ const EXPECTED_EASINGS = [
   "ease-out-quint",
   "ease-out-circ",
   "ease-out-back",
+  "ease-in-expo",
+  "ease-out-expo",
+  "ease-in-out-back",
 ];
 
 describe("jsEasing", () => {
-  it("covers every EasingPattern value, including the 4 curves added 2026-07", () => {
+  it("covers every EasingPattern value, including the 4 curves added 2026-07 and the 3 curves added 2026-07-13 (plan 1 backlog)", () => {
     expect(ALL_EASINGS.sort()).toEqual([...EXPECTED_EASINGS].sort());
   });
 
@@ -45,6 +48,8 @@ describe("jsEasing", () => {
     "ease-in-out-expo",
     "ease-out-quint",
     "ease-out-circ",
+    "ease-in-expo",
+    "ease-out-expo",
   ];
   it.each(MONOTONIC)("%s is monotonically non-decreasing on [0,1]", (name) => {
     const f = jsEasing[name];
@@ -56,15 +61,27 @@ describe("jsEasing", () => {
     }
   });
 
-  // `spring` (the fixed-duration CSS fallback approximation) and
-  // `ease-out-back` are deliberately *not* monotonic — overshooting past 1
-  // before landing exactly on it is the entire visual point of a back-ease.
-  const OVERSHOOTING: EasingPattern[] = ["spring", "ease-out-back"];
+  // `spring` (the fixed-duration CSS fallback approximation), `ease-out-back`
+  // and `ease-in-out-back` are deliberately *not* monotonic — overshooting
+  // past 1 (`ease-in-out-back` also dips below 0 on the way in) before
+  // landing exactly on 1 is the entire visual point of a back-ease.
+  const OVERSHOOTING: EasingPattern[] = ["spring", "ease-out-back", "ease-in-out-back"];
   it.each(OVERSHOOTING)("%s overshoots past 1 before landing exactly on 1", (name) => {
     const f = jsEasing[name];
     const samples = Array.from({ length: 99 }, (_, i) => f((i + 1) / 100));
     expect(Math.max(...samples)).toBeGreaterThan(1);
     expect(f(1)).toBeCloseTo(1, 9);
+  });
+
+  // `ease-in-out-back` is the one curve that additionally *undershoots*
+  // below 0 on the way in (min ≈ −0.100 near t ≈ 0.24) — the "wind-up" half
+  // of a symmetric back-ease. `spring` and `ease-out-back` are deliberately
+  // not listed: they overshoot past 1 at the end but never dip below 0.
+  const UNDERSHOOTING: EasingPattern[] = ["ease-in-out-back"];
+  it.each(UNDERSHOOTING)("%s undershoots below 0 on the way in", (name) => {
+    const f = jsEasing[name];
+    const samples = Array.from({ length: 99 }, (_, i) => f((i + 1) / 100));
+    expect(Math.min(...samples)).toBeLessThan(0);
   });
 });
 
