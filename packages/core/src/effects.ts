@@ -1,4 +1,4 @@
-import type { Effect, SoundProfile } from "@telekinesis/schema";
+import { planTyping, type DragAndDropEffect, type Effect, type SoundProfile } from "@telekinesis/schema";
 import type { GhostCursor } from "./cursor";
 import { cssEasing, jsEasing } from "./easing";
 import { rectCenter, viewportAnchor, type Point } from "./geometry";
@@ -68,18 +68,15 @@ export async function runEffect(effect: Effect, ctx: RunContext): Promise<void> 
     }
 
     case "drag-and-drop": {
-      const fromEl = getFrameElement(effect.frameId);
-      const fromRect = fromEl?.getBoundingClientRect();
-      const from = fromRect ? rectCenter(fromRect) : cursor.pos;
-      const to = destPoint(effect) ?? from;
-      await cursor.moveTo(from, { duration: 200, easing: "ease-out", signal });
-      await cursor.pressPulse(signal);
-      if (ctx.mode === "self" && fromEl) {
-        fromEl.style.transition = `transform ${effect.duration}ms ${cssEasing[effect.easing]}`;
-        fromEl.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
-      }
-      await cursor.moveTo(to, { duration: effect.duration, easing: effect.easing, signal });
-      if (effect.soundProfile) ctx.mark(effect.soundProfile);
+      // dragApproach/dragGlide are exported as two separate phases (see
+      // their doc comments below) solely so external-mode recording
+      // (packages/engine/src/record.ts) can fire the destination glide
+      // concurrently with a real, stepped Playwright drag instead of after
+      // it. Every other caller — self mode, here, plus Studio playback and
+      // a bare external `runEffect` call — just awaits them back-to-back,
+      // which is exactly the pre-split, sequential behavior.
+      const from = await dragApproach(effect, ctx);
+      await dragGlide(effect, from, ctx);
       return;
     }
 
@@ -162,6 +159,85 @@ export function destPoint(e: {
 }
 
 /**
+ * Where a `drag-and-drop`'s ghost cursor starts: the source frame's live
+ * center, or the cursor's current position if the frame can't be found (same
+ * graceful-miss fallback every other effect uses).
+ */
+function dragSourcePoint(effect: DragAndDropEffect, cursor: GhostCursor): Point {
+  const fromEl = getFrameElement(effect.frameId);
+  const fromRect = fromEl?.getBoundingClientRect();
+  return fromRect ? rectCenter(fromRect) : cursor.pos;
+}
+
+/**
+ * `drag-and-drop`'s visual, phase 1 ("pick up"): the ghost cursor travels to
+ * the source and does a brief press-pulse. Resolves with the source point so
+ * a caller that needs it (phase 2, `dragGlide`, below) doesn't have to
+ * re-measure a possibly-stale rect.
+ *
+ * Split out from phase 2 so a recording (`packages/engine/src/record.ts`)
+ * can await this short leg alone, then start the real pointer drag *and*
+ * fire phase 2 at the same time — instead of the previous choreography,
+ * which awaited the *whole* two-leg visual (source approach + destination
+ * glide) before ever touching the real pointer, leaving the dragged element
+ * to snap into place well after the ghost cursor had already finished
+ * traveling. `runEffect`'s own "drag-and-drop" case below still runs both
+ * legs back-to-back for every other caller (self-mode live preview, Studio
+ * playback, or a bare external `runEffect` call like `effects.spec.ts`
+ * makes) — this split doesn't change their behavior at all.
+ */
+export async function dragApproach(effect: DragAndDropEffect, ctx: RunContext): Promise<Point> {
+  const from = dragSourcePoint(effect, ctx.cursor);
+  await ctx.cursor.moveTo(from, { duration: 200, easing: "ease-out", signal: ctx.signal });
+  await ctx.cursor.pressPulse(ctx.signal);
+  return from;
+}
+
+/**
+ * `drag-and-drop`'s visual, phase 2 ("carry"): the ghost cursor glides from
+ * `from` (phase 1's resolved source point) to the destination over
+ * `effect.duration`. In self mode this is also what moves the dragged
+ * element itself — a CSS transform, since nothing else is driving real
+ * input; in external mode the caller is expected to be performing the real
+ * drag concurrently with this call (see `dragApproach`'s doc comment above),
+ * so only the cursor is driven here.
+ */
+export async function dragGlide(
+  effect: DragAndDropEffect,
+  from: Point,
+  ctx: RunContext,
+): Promise<void> {
+  const { cursor, signal } = ctx;
+  const to = destPoint(effect) ?? from;
+  if (ctx.mode === "self") {
+    const fromEl = getFrameElement(effect.frameId);
+    if (fromEl) {
+      fromEl.style.transition = `transform ${effect.duration}ms ${cssEasing[effect.easing]}`;
+      fromEl.style.transform = `translate(${to.x - from.x}px, ${to.y - from.y}px)`;
+    }
+  }
+  await cursor.moveTo(to, {
+    duration: effect.duration,
+    easing: effect.easing,
+    signal,
+    // A drag's carry must stay in lockstep with two other,
+    // independently-timed legs that can't follow variable-duration
+    // physics: the self-mode dragged element's CSS transition right above
+    // (already `cssEasing.spring`, a fixed-duration approximation) and, in
+    // external/recorded mode, the engine recorder's real, stepped
+    // Playwright pointer (`record.ts`), which resolves `eff.easing`
+    // through `curveForEasing`. `approximateSpring` makes the ghost's
+    // glide follow that exact same fixed-duration curve for `spring`
+    // specifically — trading a slightly less springy *feel* for a dragged
+    // element and its "leading" cursor that visibly move as one, on both
+    // self and external recordings. No-op for every other easing. See
+    // `curveForEasing`'s doc comment in `@telekinesis/schema`'s easing.ts.
+    approximateSpring: true,
+  });
+  if (effect.soundProfile) ctx.mark(effect.soundProfile);
+}
+
+/**
  * A `<TelekineticFrame>` renders a wrapper around the real control, so a
  * self-mode click must reach the interactive element inside it. `.click()`
  * dispatches a bubbling click that React's onClick handlers receive.
@@ -202,10 +278,6 @@ function setNativeValue(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function randomLetter(): string {
-  return String.fromCharCode(97 + Math.floor(Math.random() * 26));
-}
-
 async function typeInto(
   el: HTMLElement,
   text: string,
@@ -223,18 +295,22 @@ async function typeInto(
   };
 
   let current = read();
-  for (const ch of [...text]) {
+  // `startNonEmpty` preserves the original behavior exactly: a typo could
+  // already be planned on the very first character typed here if the field
+  // came in non-empty (see planTyping's doc comment).
+  const steps = planTyping(text, mistakes, { startNonEmpty: current.length > 0 });
+  for (const step of steps) {
     if (signal?.aborted) return;
-    if (mistakes && current.length > 0 && Math.random() < 0.06) {
-      write(current + randomLetter());
+    if (step.typo) {
+      write(current + step.typo);
       onChar("x");
       await sleep(speed, signal);
       write(current); // backspace the typo
       await sleep(speed, signal);
     }
-    current += ch;
+    current += step.char;
     write(current);
-    onChar(ch);
+    onChar(step.char);
     await sleep(speed, signal);
   }
 }

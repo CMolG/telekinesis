@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "scroll-up",
+    "description": "Starts mid-article and sails back up to where the interactive sets begin."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "scroll-down", "distance": 420, "duration": 0 },
+    { "action": "wait", "duration": 600 },
+    { "action": "scroll-up", "distance": 420, "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}

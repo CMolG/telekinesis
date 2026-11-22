@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "drag-and-drop",
+    "description": "Picks up the backlog card and carries it into Done, cursor leading the whole trip."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 500 },
+    {
+      "action": "drag-and-drop",
+      "frameId": "gal-drag-src",
+      "destFrameId": "gal-drag-dest",
+      "duration": 900,
+      "easing": "ease-in-out"
+    },
+    { "action": "highlight", "frameId": "gal-drag-dest", "duration": 500, "padding": 10 },
+    { "action": "wait", "duration": 1200 }
+  ]
+}

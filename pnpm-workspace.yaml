@@ -2,6 +2,7 @@ packages:
   - "packages/*"
   - "apps/*"
   - "playground"
+  - "e2e"
 
 # Pin a single React version workspace-wide. nextra-theme-docs 4.6 ships code
 # compiled with the React Compiler targeting React 19, so the docs need 19; a

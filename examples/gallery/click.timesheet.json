@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "meta": { "title": "click", "description": "Cursor travels, presses, ripples — and really clicks." },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 400 },
+    { "action": "cursor-move", "destFrameId": "gal-cta", "duration": 600 },
+    { "action": "click", "frameId": "gal-cta", "soundProfile": "macbook-trackpad" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "scroll-down",
+    "description": "The window glides down into the article, easing to a stop mid-paragraph."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 600 },
+    { "action": "scroll-down", "distance": 420, "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}

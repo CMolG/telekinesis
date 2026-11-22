@@ -1,0 +1,24 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "type-down",
+    "description": "Human-speed typing with a stray keystroke, backspaced and corrected live."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-input", "duration": 500 },
+    { "action": "click", "frameId": "gal-input", "showRipple": false },
+    {
+      "action": "type-down",
+      "frameId": "gal-input",
+      "text": "motion is the message",
+      "typingSpeed": 55,
+      "mistakes": true,
+      "soundProfile": "mechanical-keyboard",
+      "delayAfter": 300
+    },
+    { "action": "wait", "duration": 600 }
+  ]
+}

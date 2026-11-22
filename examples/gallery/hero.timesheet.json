@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "hero",
+    "description": "Lands on the hero, sweeps down to the waitlist, spotlights the email field, types an address and joins — the ghost cursor riding the whole trip.",
+    "author": "telekinesis"
+  },
+  "url": "http://localhost:4173/landing.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 350 },
+    { "action": "scroll-down", "distance": 970, "duration": 900, "delayAfter": 150 },
+    { "action": "highlight", "frameId": "waitlist-email", "duration": 400, "padding": 8, "delayAfter": 120 },
+    { "action": "cursor-move", "destFrameId": "waitlist-email", "duration": 350 },
+    { "action": "click", "frameId": "waitlist-email", "showRipple": false, "delayAfter": 100 },
+    {
+      "action": "type-down",
+      "frameId": "waitlist-email",
+      "text": "ada@tk.dev",
+      "typingSpeed": 50,
+      "soundProfile": "mechanical-keyboard",
+      "delayAfter": 150
+    },
+    { "action": "cursor-move", "destFrameId": "waitlist-submit", "duration": 300 },
+    { "action": "click", "frameId": "waitlist-submit", "soundProfile": "macbook-trackpad", "delayAfter": 280 },
+    { "action": "highlight", "frameId": "waitlist-success", "duration": 400, "padding": 12, "delayAfter": 150 },
+    { "action": "zoom-in", "frameId": "waitlist-success", "scale": 1.1, "duration": 300, "easing": "ease-out", "delayAfter": 100 },
+    { "action": "zoom-out", "duration": 300 }
+  ]
+}

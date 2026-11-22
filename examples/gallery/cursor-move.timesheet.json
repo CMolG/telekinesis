@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "cursor-move",
+    "description": "A long diagonal sweep across the whole stage, corner to corner."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-card", "duration": 500 },
+    { "action": "wait", "duration": 300 },
+    { "action": "cursor-move", "destFrameId": "gal-done", "duration": 1400, "curve": "arc" },
+    { "action": "wait", "duration": 900 }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "highlight",
+    "description": "The spotlight slides from the whole card to just the button inside it."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 500 },
+    { "action": "highlight", "frameId": "gal-card", "duration": 700, "delayAfter": 200 },
+    { "action": "highlight", "frameId": "gal-cta", "duration": 900, "padding": 10 },
+    { "action": "wait", "duration": 800 }
+  ]
+}

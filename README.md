@@ -15,6 +15,12 @@ real clicks and typing, sound — and hands you a video that's never out of date
 
 </div>
 
+<p align="center">
+<img src="public/gallery/hero.gif" width="720" alt="Telekinesis recording the playground landing: zoom, spotlight, typing, click — with a ghost cursor" />
+<br />
+<em>This GIF was recorded by Telekinesis, about Telekinesis, in CI. So is every GIF below.</em>
+</p>
+
 ---
 
 ## The problem
@@ -156,11 +162,373 @@ editor, then render a GIF or MP4.
 
 ## Effects
 
-`click` · `type-down` · `drag-and-drop` · `shake` · `zoom-in` · `zoom-out` ·
-`scroll-up` · `scroll-down` · `cursor-move` · `highlight` · `wait`
+An **effect** is one entry in a timesheet's `timeline` — a single camera move or
+interaction, strongly typed by `@telekinesis/schema`. Every GIF and timesheet below
+is real: recorded by `pnpm gallery:record`, not hand-picked, and kept honest by
+[`e2e/tests/gallery-coverage.spec.ts`](e2e/tests/gallery-coverage.spec.ts).
 
-All strongly typed (Zod) with easing and sound profiles. Full reference:
-[`docs/effects.md`](docs/effects.md).
+### Interactions
+
+#### `click`
+
+<img src="public/gallery/click.gif" width="480" alt="ghost cursor travels to a button, clicks, a ripple blooms outward" />
+
+The ghost cursor travels to the button, presses, and a ripple blooms
+outward — a real Playwright click, not a drawn glyph. The ripple plays
+out first; `soundProfile`'s sound lands with the real click itself, right after.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": { "title": "click", "description": "Cursor travels, presses, ripples — and really clicks." },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 400 },
+    { "action": "cursor-move", "destFrameId": "gal-cta", "duration": 600 },
+    { "action": "click", "frameId": "gal-cta", "soundProfile": "macbook-trackpad" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}
+```
+
+</details>
+
+#### `type-down`
+
+<img src="public/gallery/type-down.gif" width="480" alt="text types into a field at human speed, a stray keystroke backspaced and corrected live" />
+
+Types at human speed — `mistakes: true` gives each character a small,
+independent chance of a typo that gets backspaced and corrected live, so
+a run might land clean or catch a few. `typingSpeed` (ms/char) sets the
+cadence, `soundProfile` the clatter.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "type-down",
+    "description": "Human-speed typing with a stray keystroke, backspaced and corrected live."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-input", "duration": 500 },
+    { "action": "click", "frameId": "gal-input", "showRipple": false },
+    {
+      "action": "type-down",
+      "frameId": "gal-input",
+      "text": "motion is the message",
+      "typingSpeed": 55,
+      "mistakes": true,
+      "soundProfile": "mechanical-keyboard",
+      "delayAfter": 300
+    },
+    { "action": "wait", "duration": 600 }
+  ]
+}
+```
+
+</details>
+
+#### `drag-and-drop`
+
+<img src="public/gallery/drag-and-drop.gif" width="480" alt="ghost cursor picks up a card and carries it into a drop zone" />
+
+Picks up the card and carries it into the drop zone, the cursor leading
+the whole trip. `destFrameId` resolves the drop point at runtime — no
+hardcoded pixels — and `easing` shapes the glide.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "drag-and-drop",
+    "description": "Picks up the backlog card and carries it into Done, cursor leading the whole trip."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 500 },
+    {
+      "action": "drag-and-drop",
+      "frameId": "gal-drag-src",
+      "destFrameId": "gal-drag-dest",
+      "duration": 900,
+      "easing": "ease-in-out"
+    },
+    { "action": "highlight", "frameId": "gal-drag-dest", "duration": 500, "padding": 10 },
+    { "action": "wait", "duration": 1200 }
+  ]
+}
+```
+
+</details>
+
+#### `shake`
+
+<img src="public/gallery/shake.gif" width="480" alt="a sharp decaying wobble shakes the target, then settles" />
+
+A sharp, decaying wobble on the target — anticipation before a click,
+impossible to miss and gone in a blink. `intensity` (`low·medium·high`)
+sets the amplitude; `duration` how long it takes to decay.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "shake",
+    "description": "A sharp anticipation shake on the CTA — impossible to miss, gone in a blink."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-cta", "duration": 550 },
+    { "action": "shake", "frameId": "gal-cta", "intensity": "high", "duration": 650, "delayAfter": 250 },
+    { "action": "wait", "duration": 1650 }
+  ]
+}
+```
+
+</details>
+
+### Camera & navigation
+
+#### `zoom-in`
+
+<img src="public/gallery/zoom-in.gif" width="480" alt="the camera pushes into a card and holds" />
+
+The camera pushes into the frame and holds — a matrix scale+translate
+anchored on `frameId`, eased by `easing`. `scale` sets how far it
+pushes in before the hold.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "zoom-in",
+    "description": "The camera pushes into the card and holds, framing it before anything else happens."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 400 },
+    { "action": "zoom-in", "frameId": "gal-card", "scale": 1.35, "duration": 1000, "easing": "ease-out" },
+    { "action": "wait", "duration": 1700 }
+  ]
+}
+```
+
+</details>
+
+#### `zoom-out`
+
+<img src="public/gallery/zoom-out.gif" width="480" alt="the camera pulls back out from a card to the full page" />
+
+A clean pull back to scale 1 after a prior zoom-in — the same camera,
+`duration` and `easing` set the pace of the release; it has no `frameId`
+of its own, it just reverses whatever the last zoom-in framed.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "zoom-out",
+    "description": "Zoomed in on the card, then a clean pull back out to the full page."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    {
+      "action": "zoom-in",
+      "frameId": "gal-card",
+      "scale": 1.35,
+      "duration": 900,
+      "easing": "ease-out",
+      "delayAfter": 500
+    },
+    { "action": "zoom-out", "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 700 }
+  ]
+}
+```
+
+</details>
+
+#### `scroll-down`
+
+<img src="public/gallery/scroll-down.gif" width="480" alt="the page glides down and eases to a stop mid-content" />
+
+The window glides down the page and eases to a stop mid-content —
+`distance` in pixels (or `"viewport"`) sets how far, `duration` and
+`easing` set the pace.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "scroll-down",
+    "description": "The window glides down into the article, easing to a stop mid-paragraph."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 600 },
+    { "action": "scroll-down", "distance": 420, "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}
+```
+
+</details>
+
+#### `scroll-up`
+
+<img src="public/gallery/scroll-up.gif" width="480" alt="the page sails back up and eases to a stop higher on the article" />
+
+The mirror of scroll-down: sails back up by `distance` pixels over
+`duration`, shaped by the same `easing` vocabulary — here starting
+mid-article and returning to where the interactive sets begin.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "scroll-up",
+    "description": "Starts mid-article and sails back up to where the interactive sets begin."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "scroll-down", "distance": 420, "duration": 0 },
+    { "action": "wait", "duration": 600 },
+    { "action": "scroll-up", "distance": 420, "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 1600 }
+  ]
+}
+```
+
+</details>
+
+#### `cursor-move`
+
+<img src="public/gallery/cursor-move.gif" width="480" alt="ghost cursor sweeps diagonally across the stage, corner to corner" />
+
+A long diagonal sweep corner to corner. `curve: "arc"` bows the path so
+it reads as a hand, not a robot; `destFrameId` picks the destination and
+`duration` the travel time.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "cursor-move",
+    "description": "A long diagonal sweep across the whole stage, corner to corner."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "cursor-move", "destFrameId": "gal-card", "duration": 500 },
+    { "action": "wait", "duration": 300 },
+    { "action": "cursor-move", "destFrameId": "gal-done", "duration": 1400, "curve": "arc" },
+    { "action": "wait", "duration": 900 }
+  ]
+}
+```
+
+</details>
+
+#### `highlight`
+
+<img src="public/gallery/highlight.gif" width="480" alt="a spotlight dims the page and slides from a card to the button inside it" />
+
+The spotlight dims everything but a rounded cutout around `frameId`,
+then slides from the whole card to just the button inside it. `padding`
+controls how tightly the cutout hugs the frame.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "highlight",
+    "description": "The spotlight slides from the whole card to just the button inside it."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 500 },
+    { "action": "highlight", "frameId": "gal-card", "duration": 700, "delayAfter": 200 },
+    { "action": "highlight", "frameId": "gal-cta", "duration": 900, "padding": 10 },
+    { "action": "wait", "duration": 800 }
+  ]
+}
+```
+
+</details>
+
+#### `wait`
+
+<img src="public/gallery/wait.gif" width="480" alt="a held spotlight pauses, then slides over to a second target" />
+
+A pure pause — `duration` in milliseconds, nothing else. Here it's
+bracketed by two `highlight` calls so the held beat reads as rhythm in
+the GIF, not as dead air.
+
+<details><summary>The timesheet that filmed this GIF</summary>
+
+```json
+{
+  "version": "1.0",
+  "meta": {
+    "title": "wait",
+    "description": "A held spotlight, a deliberate pause, then the payoff slides into view."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "highlight", "frameId": "gal-cta", "duration": 400, "delayAfter": 200 },
+    { "action": "wait", "duration": 1500 },
+    { "action": "highlight", "frameId": "gal-done", "duration": 600, "delayAfter": 400 }
+  ]
+}
+```
+
+</details>
+
+Full field reference for every effect (defaults, easing, sound profiles):
+[`docs/effects.md`](docs/effects.md). For the shape of a whole timesheet:
+[`docs/timesheet.md`](docs/timesheet.md).
 
 ## AI: the MCP server
 
@@ -200,6 +568,18 @@ pnpm playground      # live demo
 ```
 
 Architecture deep-dive: [`docs/architecture.md`](docs/architecture.md).
+
+## Quality
+
+The suite runs in three layers: Vitest unit tests (schema, easing, spring, cursor
+math), Playwright e2e in a real browser (runtime install, zero-footprint mode,
+every effect's observable invariants), and the full record → mix → gif pipeline
+through real ffmpeg — `pnpm e2e` runs the browser and pipeline layers, `pnpm test`
+the unit layer.
+
+Every GIF above is also a human visual-regression fixture: it's produced by the
+same engine your app records with, so if a PR changes how the engine feels, it
+changes this diff.
 
 ## Contributing
 

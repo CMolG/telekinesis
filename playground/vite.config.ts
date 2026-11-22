@@ -19,4 +19,19 @@ export default defineConfig({
     },
   },
   server: { port: 5173 },
+  build: {
+    // Vite only builds the root index.html unless every multi-page entry is
+    // listed explicitly here — without this, `landing.html` and
+    // `gallery.html` silently vanish from `dist/` (they still work fine
+    // under `vite dev`, which serves any .html by path, so the gap only
+    // shows up post-build under `vite preview`, e.g. the e2e/gallery-record
+    // webServer).
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL("./index.html", import.meta.url)),
+        landing: fileURLToPath(new URL("./landing.html", import.meta.url)),
+        gallery: fileURLToPath(new URL("./gallery.html", import.meta.url)),
+      },
+    },
+  },
 });

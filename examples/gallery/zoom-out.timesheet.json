@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "zoom-out",
+    "description": "Zoomed in on the card, then a clean pull back out to the full page."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    {
+      "action": "zoom-in",
+      "frameId": "gal-card",
+      "scale": 1.35,
+      "duration": 900,
+      "easing": "ease-out",
+      "delayAfter": 500
+    },
+    { "action": "zoom-out", "duration": 900, "easing": "ease-in-out" },
+    { "action": "wait", "duration": 700 }
+  ]
+}

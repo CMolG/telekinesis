@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "meta": {
+    "title": "zoom-in",
+    "description": "The camera pushes into the card and holds, framing it before anything else happens."
+  },
+  "url": "http://localhost:4173/gallery.html?demo",
+  "resolution": { "width": 960, "height": 540 },
+  "fps": 30,
+  "timeline": [
+    { "action": "wait", "duration": 400 },
+    { "action": "zoom-in", "frameId": "gal-card", "scale": 1.35, "duration": 1000, "easing": "ease-out" },
+    { "action": "wait", "duration": 1700 }
+  ]
+}
